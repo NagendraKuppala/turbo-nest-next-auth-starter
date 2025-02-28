@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(uuid())
+  firstName      String
+  lastName       String?
+  username       String?   @unique
+  userTag        UserTag   @default(DEAL_SCOUT)
+  email          String    @unique
+  password       String
+  avatarUrl      String?
+  tipsGiven      Tip[]     @relation("GivenTips")
+  tipsReceived   Tip[]     @relation("ReceivedTips")
+  accountBalance    Float     @default(0) // Current tip balance, updated on each tip received/payout
+  totalPayOut    Float     @default(0) // Total amount paid out to user
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  refreshToken   String?   // Store refresh JWT token (bcrypt hashed)
+  role           Role      @default(USER)
+  posts          Post[]
+  comments       Comment[]
+  votes          Vote[]  
+  payouts        Payout[]  // Relation to Payout history
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserTag {
+  DEAL_SCOUT
+  DEAL_HUNTER
+  DEAL_EXPERT
+  DEAL_MASTER
+  DEAL_GURU
+}
+
+model Post {
+  id                  String    @id @default(uuid())
+  title               String
+  description         String
+  dealUrl             String?
+  brand               String?
+  originalPrice       Float?
+  sellingPrice        Float
+  discountPercentage  Float?
+  expiryDate          DateTime?
+  category            String
+  images              String[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  authorId            String
+  author              User      @relation(fields: [authorId], references: [id])
+  upvotesCount        Int       @default(0)
+  downvotesCount      Int       @default(0)
+  comments            Comment[]
+  votes               Vote[]
+  postType          PostType  @default(TRENDING)
+  promotionDurationWeeks Int?   // Number of weeks the promotion is for (for FEATURED/COMMUNITY)
+  promotionExpiryDate DateTime?   // Defaults to expiryDate for TRENDING (if provided), calculated for promoted posts
+  isActive            Boolean   @default(true) // To control post visibility
+  tips                Tip[] // Relation for tips received for this post
+
+  @@map("posts")
+}
+
+enum PostType {
+  FEATURED
+  COMMUNITY
+  TRENDING
+}
+
+model Comment {
+  id              String    @id @default(uuid())
+  text            String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  authorId        String
+  author          User      @relation(fields: [authorId], references: [id])
+  postId          String
+  post            Post      @relation(fields: [postId], references: [id])
+  parentId        String?
+  parentComment   Comment?  @relation("ChildComments", fields: [parentId], references: [id], map: "comment_parent_id_fkey", onDelete: Cascade)    // Self-relation for parent comment
+  childComments   Comment[] @relation("ChildComments")    // Self-relation for child comments
+  votes           Vote[]
+  upvotesCount    Int       @default(0)
+  downvotesCount      Int       @default(0)
+
+  @@map("comments")
+}
+
+enum VoteType {
+  LIKE
+  DISLIKE
+}
+
+model Vote {
+  id        String    @id @default(uuid())
+  voteType  VoteType
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  postId    String?
+  post      Post?     @relation(fields: [postId], references: [id])
+  commentId String?
+  comment   Comment?  @relation(fields: [commentId], references: [id])
+
+  @@map("votes")
+  @@unique([userId, postId], name: "unique_user_post_vote")
+  @@unique([userId, commentId], name: "unique_user_comment_vote")
+}
+
+model Tip {
+  id        String    @id @default(uuid())
+  amount    Float     @default(5)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tipperId  String
+  tipper    User      @relation("GivenTips", fields: [tipperId], references: [id])
+  receiverId String
+  receiver  User      @relation("ReceivedTips", fields: [receiverId], references: [id])
+  postId    String
+  post      Post      @relation(fields: [postId], references: [id])
+
+  @@map("tips")
+}
+
+model Payout {
+  id            String    @id @default(uuid())
+  amount        Float     // Amount paid out
+  payoutDate    DateTime  @default(now())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id]) // User who received payout
+  transactionId String?   // Optional: If you get transaction IDs from Stripe/Payout service
+
+  @@map("payouts")
+}

@@ -1,5 +1,5 @@
 {
-  "name": "kwikdeals",
+  "name": "turbo-nest-next-auth-starter",
   "private": true,
   "scripts": {
     "build": "turbo build",
@@ -8,14 +8,14 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
-    "prettier": "^3.5.0",
-    "turbo": "^2.4.2",
-    "typescript": "5.7.3"
+    "prettier": "^3.5.2",
+    "turbo": "^2.4.4",
+    "typescript": "5.8.2"
   },
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "npm@10.9.2",
+  "packageManager": "npm@11.1.0",
   "workspaces": [
     "apps/*",
     "packages/*"
