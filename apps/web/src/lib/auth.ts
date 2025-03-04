@@ -1,81 +1,102 @@
-"use server";
+import { SignInFormData, AuthResponse, SignUpFormData } from "./authTypes";
+import { deleteSession, updateTokens } from "./session";
+import { ApiError } from "./error";
+import { config } from "@/config";
 
-import { SignInFormData, SignUpFormData, AuthResponse } from "./authTypes";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-export async function signIn(data: SignInFormData): Promise<AuthResponse> {
-  const response = await fetch(`${BACKEND_URL}/auth/signin`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    if (response.status === 401) {
-      throw new Error("Invalid email or password");
-    }
-    throw new Error(errorData.message || "Sign in failed");
-  }
-
-  return response.json();
-}
-
-export async function signUp(data: SignUpFormData): Promise<AuthResponse> {
-  const response = await fetch(`${BACKEND_URL}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    if (response.status === 409) {
-      throw new Error("A user with this email or username already exists");
-    }
-    throw new Error(errorData.message || "Registration failed");
-  }
-
-  return response.json();
-}
-
-
-export const refreshToken = async (oldRefreshToken: string) => {
+export async function signIn(credentials: SignInFormData): Promise<AuthResponse> {
   try {
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-    const response = await fetch(`${backendUrl}/auth/refresh`, {
+    
+    const response = await fetch(`${config.api.url}/auth/signin`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        authorization: `Bearer ${oldRefreshToken}`,
       },
+      body: JSON.stringify(credentials),
     });
+
     if (!response.ok) {
-      throw new Error("Failed to refresh tokens: " + response.statusText);
+      const errorData = await response.json();
+      throw new ApiError(
+        errorData.message || "Login failed",
+        response.status,
+        errorData.errors
+      );
     }
 
-    const { accessToken, refreshToken } = await response.json();
+    const result = await response.json();
+    console.log('SignIn response:', result);
 
-    // Update the tokens in the session
-    const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-    const updateResult = await fetch(`${frontendUrl}/api/auth/updateToken`, {
+    return result;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new Error("Failed to sign in. Please try again.");
+  }
+}
+
+export async function signUp(data: SignUpFormData): Promise<AuthResponse> {
+  try {
+    const response = await fetch(`${config.api.url}/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        accessToken,
-        refreshToken,
+        firstName: data.firstName,
+        lastName: data.lastName || "",
+        username: data.username || "",
+        email: data.email,
+        password: data.password
       }),
     });
-
-    if (!updateResult.ok) {
-      throw new Error("Failed to update tokens: " + updateResult.statusText);
+    
+    // Handle response...
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(
+        errorData.message || "Registration failed",
+        response.status,
+        errorData.errors
+      );
     }
-
-    return accessToken;
+    
+    return await response.json();
   } catch (error) {
-    throw new Error("Failed to refresh tokens: " + error);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new Error("Failed to sign up. Please try again.");
+  }
+}
+
+export async function refreshToken(oldRefreshToken: string) {
+  try {
+      const response = await fetch(`${config.api.url}/auth/refresh`, {
+          method: "POST",
+          headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${oldRefreshToken}`
+          },
+          credentials: 'include',
+      });
+
+      if (!response.ok) {
+          // If refresh fails, clear the session and redirect to login
+          await deleteSession();
+          throw new Error("Token refresh failed");
+      }
+
+      const { accessToken, refreshToken } = await response.json();
+      
+      // Update tokens in session
+      await updateTokens({ accessToken, refreshToken });
+      
+      return { accessToken, refreshToken };
+  } catch (error) {
+      console.error("Error refreshing token:", error);
+      // Clear session on error
+      await deleteSession();
+      throw error;
   }
 };

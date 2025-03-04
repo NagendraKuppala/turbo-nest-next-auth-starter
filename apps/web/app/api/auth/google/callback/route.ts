@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     const email = searchParams.get('email');
     const username = searchParams.get('username');
     const role = searchParams.get('role');
+    const avatar = searchParams.get('avatar')
 
     if(!accessToken || !refreshToken || !userId || !email || !username || !role) 
         throw new Error('Google OAuth Failed!');
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
             email: email,
             username: username,
             role: role as "USER" | "ADMIN",
+            avatar: avatar,
         },
         accessToken,
         refreshToken,

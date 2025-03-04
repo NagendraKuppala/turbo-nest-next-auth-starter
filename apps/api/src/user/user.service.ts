@@ -36,6 +36,15 @@ export class UserService {
         where: {
           email,
         },
+        select: {
+          id: true,
+          email: true,
+          password: true,
+          username: true,
+          role: true,
+          refreshToken: true,
+          avatarUrl: true, // Make sure avatarUrl is included in selection
+        },
       });
     } catch (error) {
       this.logger.error('Error finding user by email', (error as Error).stack);
@@ -48,6 +57,15 @@ export class UserService {
       return await this.prisma.user.findUnique({
         where: {
           username,
+        },
+        select: {
+          id: true,
+          email: true,
+          password: true,
+          username: true,
+          role: true,
+          refreshToken: true,
+          avatarUrl: true, // Make sure avatarUrl is included in selection
         },
       });
     } catch (error) {
@@ -64,6 +82,15 @@ export class UserService {
       return await this.prisma.user.findUnique({
         where: {
           id: userId,
+        },
+        select: {
+          id: true,
+          email: true,
+          password: true,
+          username: true,
+          role: true,
+          refreshToken: true,
+          avatarUrl: true, // Make sure avatarUrl is included in selection
         },
       });
     } catch (error) {

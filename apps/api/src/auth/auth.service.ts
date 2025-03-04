@@ -50,6 +50,7 @@ export class AuthService {
       email: newUser.email,
       username: newUser.username,
       role: newUser.role,
+      avatar: newUser.avatarUrl,
       accessToken,
       refreshToken,
     };
@@ -70,6 +71,7 @@ export class AuthService {
       email: user.email,
       username: user.username,
       role: user.role,
+      avatar: user.avatarUrl,
     };
   }
 
@@ -79,15 +81,22 @@ export class AuthService {
     email?: string,
     username?: string,
     role?: Role,
+    avatarUrl?: string,
   ) {
+    const user = await this.userService.findByUserId(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
     const { accessToken, refreshToken } = await this.generateJwtToken(userId);
     const hashedRefreshToken = await hash(refreshToken);
     await this.userService.updateHashedRefreshToken(userId, hashedRefreshToken);
     return {
       id: userId,
-      email: email,
-      username: username,
-      role,
+      email: email || user.email,
+      username: username || user.username,
+      role: role || user.role,
+      avatar: avatarUrl || user.avatarUrl,
       accessToken,
       refreshToken,
     };
@@ -112,6 +121,7 @@ export class AuthService {
       email: user.email,
       username: user.username,
       role: user.role,
+      avatar: user.avatarUrl,
     };
   }
 
@@ -128,11 +138,19 @@ export class AuthService {
       id: user.id,
       email: user.email,
       username: user.username,
+      role: user.role,
+      avatar: user.avatarUrl,
     };
   }
 
   // Refresh token service
-  async refreshToken(userId: string, email?: string, username?: string) {
+  async refreshToken(
+    userId: string,
+    email?: string,
+    username?: string,
+    role?: Role,
+    avatarUrl?: string,
+  ) {
     const { accessToken, refreshToken } = await this.generateJwtToken(userId);
     const hashedRefreshToken = await hash(refreshToken);
     await this.userService.updateHashedRefreshToken(userId, hashedRefreshToken);
@@ -140,6 +158,8 @@ export class AuthService {
       id: userId,
       email: email,
       username: username,
+      role: role,
+      avatar: avatarUrl,
       accessToken,
       refreshToken,
     };

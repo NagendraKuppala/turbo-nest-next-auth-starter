@@ -7,6 +7,7 @@ import Link from "next/link";
 import { createSession } from "@/lib/session";
 import { SignInForm } from "./SignInForm";
 import { AuthResponse} from "@/lib/authTypes";
+import { useAuthStore } from "@/store/authStore";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -19,17 +20,38 @@ export default function SignInPage() {
   }, []);
 
   const handleSuccess = async (result: AuthResponse) => {
-    await createSession({
-      user: {
-        id: result.id,
-        email: result.email,
-        username: result.username,
-        role: result.role,
-      },
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    });
-    router.push("/");
+    try {
+      console.log("Creating session with result:", result);
+      // First update the session
+      await createSession({
+        user: {
+          id: result.id,
+          email: result.email,
+          username: result.username,
+          role: result.role,
+          avatar: result.avatar,
+        },
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+      
+      useAuthStore.setState({ 
+        isAuthenticated: true,
+        user: {
+          id: result.id,
+          email: result.email,
+          username: result.username,
+          role: result.role,
+          avatar: result.avatar
+        },
+        isLoading: false
+      });
+
+      router.push("/");
+    } catch (error) {
+      console.error("Error during sign-in:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to sign in");
+    }
   };
 
   const handleError = (error: Error) => {

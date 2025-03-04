@@ -9,7 +9,10 @@ export type Session = {
     id: string;
     email: string;
     username: string;
+    firstName: string;
+    lastName: string;
     role: "USER" | "ADMIN";
+    avatar: string;
   };
   accessToken: string;
   refreshToken: string;

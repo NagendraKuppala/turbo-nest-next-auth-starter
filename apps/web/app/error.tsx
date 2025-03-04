@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
 export default function Error({
   error,
   reset,
@@ -23,12 +25,11 @@ export default function Error({
         </p>
       )}
       
-      <button
-        className="btn bg-primary text-white px-4 py-2 rounded hover:bg-primary/90"
+      <Button
         onClick={() => reset()}
       >
         Try again
-      </button>
+      </Button>
     </div>
   )
 }

@@ -55,7 +55,10 @@ export interface AuthResponse {
   id: string;
   email: string;
   username: string;
+  firstName: string;
+  lastName?: string;
   role: UserRole;
+  avatar?: string;
   accessToken: string;
   refreshToken: string;
 }

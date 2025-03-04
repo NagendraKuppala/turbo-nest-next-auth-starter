@@ -1,17 +1,18 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { signInSchema, SignInFormData } from "@/lib/authTypes";
-import { signIn as signInApi } from "@/lib/auth";
+import { signInSchema, SignInData, AuthResponse } from "@/lib/authTypes";
+import { signIn } from "@/lib/auth";
 
 interface SignInFormProps {
   onSuccess: (result: AuthResponse) => void;
   onError: (error: Error) => void;
   isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
+  setIsLoading: (isLoading: boolean) => void;
   errorMessage: string | null;
 }
 
@@ -26,14 +27,14 @@ export function SignInForm({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<SignInFormData>({
+  } = useForm<SignInData>({
     resolver: zodResolver(signInSchema),
   });
 
-  const onSubmit = async (data: SignInFormData) => {
+  const onSubmit = async (data: SignInData) => {
     setIsLoading(true);
     try {
-      const result = await signInApi(data);
+      const result = await signIn(data);
       onSuccess(result);
     } catch (error) {
       onError(

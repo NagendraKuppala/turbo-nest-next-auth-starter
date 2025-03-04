@@ -1,26 +1,19 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Image from "next/image";
-import { Info as InfoIcon } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { signUpSchema, SignUpFormData } from "@/lib/authTypes";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 import { signUp as signUpApi } from "@/lib/auth";
-import { useState } from "react";
-import Link from "next/link";
+import { AuthResponse, SignUpFormData, signUpSchema } from "@/lib/authTypes";
 
 interface SignUpFormProps {
-  onSuccess: (result: AuthResponse) => void;
+  onSuccess: (data: AuthResponse) => void;
   onError: (error: Error) => void;
   isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
+  setIsLoading: (isLoading: boolean) => void;
   errorMessage: string | null;
 }
 
@@ -31,9 +24,6 @@ export function SignUpForm({
   setIsLoading,
   errorMessage,
 }: SignUpFormProps) {
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-
   const {
     register,
     handleSubmit,
@@ -45,6 +35,7 @@ export function SignUpForm({
   const onSubmit = async (data: SignUpFormData) => {
     setIsLoading(true);
     try {
+      console.log('Form data being submitted:', data);
       const result = await signUpApi(data);
       onSuccess(result);
     } catch (error) {
@@ -58,59 +49,8 @@ export function SignUpForm({
     }
   };
 
-  // File handling functions
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="flex justify-center mb-4">
-        <div
-          className="relative h-24 w-24 cursor-pointer rounded-full border-2 border-dashed border-border hover:border-primary/50 transition-colors"
-          onClick={() => document.getElementById("avatarInput")?.click()}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-        >
-          {avatarPreview ? (
-            <Image
-              src={avatarPreview}
-              alt="Avatar Preview"
-              fill
-              className="object-cover rounded-full"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-center text-sm text-muted-foreground p-2">
-              Add Profile Picture
-            </div>
-          )}
-        </div>
-        <input
-          id="avatarInput"
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-        />
-      </div>
-
       <div className="grid grid-cols-2 gap-4">
         <div className="">
           <Label htmlFor="firstName">
@@ -167,17 +107,19 @@ export function SignUpForm({
           </Label>
           <TooltipProvider>
             <Tooltip>
-              <TooltipTrigger>
-                <InfoIcon className="h-4 w-4 text-muted-foreground" />
+              <TooltipTrigger asChild>
+                <div className="cursor-help">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </div>
               </TooltipTrigger>
               <TooltipContent className="w-80">
                 <div className="space-y-2">
                   <p className="font-semibold">Password requirements:</p>
                   <ul className="list-inside list-disc space-y-1 text-sm">
-                    <li>Minimum 8 characters long</li>
+                    <li>At least 8 characters</li>
                     <li>At least one uppercase letter</li>
                     <li>At least one number</li>
-                    <li>At least one special character (@$!%*?&)</li>
+                    <li>At least one special character</li>
                   </ul>
                 </div>
               </TooltipContent>
@@ -219,6 +161,7 @@ export function SignUpForm({
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading ? "Creating Account..." : "Create Account"}
       </Button>
+
       <div className="text-center text-sm m-4">
         Already have an account?{" "}
         <Link href="/auth/signin" className="font-semibold underline">

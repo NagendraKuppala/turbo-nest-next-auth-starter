@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
+import { Providers } from "./providers";
 import { cn } from "@/lib/utils";
+import { Navbar } from "@/components/layout/navbar";
+import { Footer } from "@/components/layout/footer";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -15,10 +17,12 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: {
-  default: "Kwikdeals: The Best Deals, Coupons, Promo Codes & Discounts",
-  template: "%s | Kwikdeals: The Best Deals, Coupons, Promo Codes & Discounts",
+    default: "Kwikdeals: The Best Deals, Coupons, Promo Codes & Discounts",
+    template:
+      "%s | Kwikdeals: The Best Deals, Coupons, Promo Codes & Discounts",
   },
-  description: "Discover unbeatable money-saving deals and exclusive coupons at Kwikdeals. Our trusted community curates the best bargains, discounts, promo codes, freebies, and price comparisons to help you save every day.",
+  description:
+    "Discover unbeatable money-saving deals and exclusive coupons at Kwikdeals. Our trusted community curates the best bargains, discounts, promo codes, freebies, and price comparisons to help you save every day.",
 };
 
 export default function RootLayout({
@@ -28,15 +32,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn(geistSans.variable, geistMono.variable)} suppressHydrationWarning>
-        <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-          {children}
-        </ThemeProvider>
+      <body
+        className={cn(
+          geistSans.variable,
+          geistMono.variable,
+          "flex min-h-screen flex-col"
+        )}
+        suppressHydrationWarning
+      >
+        <Providers>
+          <Navbar />
+          <main className="flex-grow">{children}</main>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

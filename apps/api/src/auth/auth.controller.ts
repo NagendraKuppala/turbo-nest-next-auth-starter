@@ -26,7 +26,13 @@ export class AuthController {
   loginUser(
     @Request()
     req: {
-      user: { id: string; email?: string; username?: string; role?: Role };
+      user: {
+        id: string;
+        email?: string;
+        username?: string;
+        role?: Role;
+        avatarUrl?: string;
+      };
     },
   ) {
     return this.authService.loginUser(
@@ -34,14 +40,32 @@ export class AuthController {
       req.user.email,
       req.user.username,
       req.user.role,
+      req.user.avatarUrl,
     );
   }
 
   @Public()
   @UseGuards(RefreshAuthGuard)
   @Post('refresh')
-  refreshToken(@Request() req: { user: { id: string; email?: string } }) {
-    return this.authService.refreshToken(req.user.id, req.user.email);
+  refreshToken(
+    @Request()
+    req: {
+      user: {
+        id: string;
+        email?: string;
+        username?: string;
+        role?: Role;
+        avatarUrl?: string;
+      };
+    },
+  ) {
+    return this.authService.refreshToken(
+      req.user.id,
+      req.user.email,
+      req.user.username,
+      req.user.role,
+      req.user.avatarUrl,
+    );
   }
 
   @Public()
@@ -55,7 +79,13 @@ export class AuthController {
   async googleLoginCallback(
     @Request()
     req: {
-      user: { id: string; email?: string; username?: string; role?: Role };
+      user: {
+        id: string;
+        email?: string;
+        username?: string;
+        role?: Role;
+        avatarUrl?: string;
+      };
     },
     @Res() res: Response,
   ) {
@@ -64,11 +94,19 @@ export class AuthController {
       req.user.email,
       req.user.username,
       req.user.role,
+      req.user.avatarUrl,
     );
+    const queryParams = new URLSearchParams({
+      accessToken: response.accessToken,
+      refreshToken: response.refreshToken,
+      userId: response.id,
+      email: response.email ?? '',
+      username: response.username ?? '',
+      role: response.role ?? '',
+      avatar: response.avatar ?? '',
+    }).toString();
     const frontendUrl = process.env.FRONTEND_URL;
-    res.redirect(
-      `${frontendUrl}/api/auth/google/callback?accessToken=${response.accessToken}&refreshToken=${response.refreshToken}&userId=${response.id}&email=${response.email}&username=${response.username}&role=${response.role}`,
-    );
+    res.redirect(`${frontendUrl}/api/auth/google/callback?${queryParams}`);
   }
 
   @Post('signout')
