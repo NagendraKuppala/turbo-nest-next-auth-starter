@@ -51,6 +51,14 @@ export type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export type UserRole = "USER" | "ADMIN";
 
+// Email verification types
+export interface VerifyEmailResponse {
+  message: string;
+}
+
+export interface ResendVerificationResponse {
+  message: string;
+}
 export interface AuthResponse {
   id: string;
   email: string;
@@ -59,6 +67,48 @@ export interface AuthResponse {
   lastName?: string;
   role: UserRole;
   avatar?: string;
+  emailVerified: boolean;
   accessToken: string;
   refreshToken: string;
+  message?: string;
 }
+
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
+// Add this to the end of the file
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, { message: "Password must be at least 8 characters" })
+      .max(100)
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+        {
+          message:
+            "Password must contain at least one uppercase letter, one lowercase letter, one numeric and one special character",
+        }
+      ),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .min(1, { message: "Email is required" })
+    .email({ message: "Invalid email address" })
+    .toLowerCase(),
+});
+
+export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;

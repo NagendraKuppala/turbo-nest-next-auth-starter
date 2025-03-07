@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/authStore";
 import { authFetch } from "@/lib/authFetch";
-import Image from "next/image"; // Correct import for Next.js Image component
+import Image from "next/image";
+import { Spinner } from "@/components/ui/spinner";
 
 // Form schema for profile update
 const profileSchema = z.object({
@@ -48,8 +48,10 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function ProfilePage() {
-  const router = useRouter();
-  const { user, isAuthenticated, isLoading, updateUser } = useAuthStore();
+  // Get user from global store
+  const { user, isLoading, updateUser } = useAuthStore();
+  
+  // Component state
   const [isUploading, setIsUploading] = useState(false);
   const [profileUpdating, setProfileUpdating] = useState(false);
   const [passwordUpdating, setPasswordUpdating] = useState(false);
@@ -57,7 +59,7 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form for profile information
+  // Forms
   const {
     register: profileRegister,
     handleSubmit: handleProfileSubmit,
@@ -65,10 +67,8 @@ export default function ProfilePage() {
     reset: resetProfileForm,
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    // Don't set defaultValues here
   });
 
-  // Form for password change
   const {
     register: passwordRegister,
     handleSubmit: handlePasswordSubmit,
@@ -77,13 +77,6 @@ export default function ProfilePage() {
   } = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
   });
-
-  // If not authenticated, redirect to login
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/auth/signin");
-    }
-  }, [isLoading, isAuthenticated, router]);
 
   // Reset form when user data is available
   useEffect(() => {
@@ -149,7 +142,6 @@ export default function ProfilePage() {
         firstName: data.firstName,
         lastName: data.lastName,
         username: data.username,
-        // email is omitted
       };
       const response = await authFetch("/users/profile", {
         method: "PATCH",
@@ -206,9 +198,15 @@ export default function ProfilePage() {
     }
   };
 
-  // If loading or not authenticated, don't render content
-  if (isLoading || !isAuthenticated || !user) {
-    return null;
+  // Show loading state
+  if (isLoading) {
+    return <Spinner />;
+  }
+  
+  // The middleware handles redirecting if not authenticated,
+  // so we can assume user exists here
+  if (!user) {
+    return null; // This is a fallback that shouldn't normally happen
   }
 
   return (
@@ -316,8 +314,8 @@ export default function ProfilePage() {
                       <Input
                         id="email"
                         {...profileRegister("email")}
-                        disabled={true} // Always disable the email field
-                        readOnly={true} // Extra protection to make it read-only
+                        disabled={true}
+                        readOnly={true}
                       />
                       {profileErrors.email && (
                         <p className="text-red-500 text-sm">

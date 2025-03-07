@@ -6,8 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { SignUpForm } from "./SignUpForm";
 import { AuthResponse } from "@/lib/authTypes";
-import { createSession } from "@/lib/session";
-import { useAuthStore } from "@/store/authStore";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -21,31 +19,7 @@ export default function RegisterPage() {
 
   const handleSuccess = async (result: AuthResponse) => {
     console.log("User registered:", result);
-    await createSession({
-      user: {
-        id: result.id,
-        email: result.email,
-        username: result.username,
-        role: result.role,
-        avatar: result.avatar || "",
-      },
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    });
-
-    useAuthStore.setState({
-      isAuthenticated: true,
-      user: {
-        id: result.id,
-        email: result.email,
-        username: result.username,
-        role: result.role,
-        avatar: result.avatar || "",
-      },
-      isLoading: false,
-    });
-
-    router.push("/");
+    router.push(`/auth/verification-pending?email=${encodeURIComponent(result.email)}`);
   };
   const handleError = (error: Error) => {
     setErrorMessage(error.message);

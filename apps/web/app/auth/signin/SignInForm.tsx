@@ -1,11 +1,10 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { signInSchema, SignInData, AuthResponse } from "@/lib/authTypes";
+import { signInSchema, SignInFormData, AuthResponse } from "@/lib/authTypes";
 import { signIn } from "@/lib/auth";
 
 interface SignInFormProps {
@@ -27,21 +26,17 @@ export function SignInForm({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<SignInData>({
+  } = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
   });
 
-  const onSubmit = async (data: SignInData) => {
+  const onSubmit = async (data: SignInFormData) => {
     setIsLoading(true);
     try {
       const result = await signIn(data);
       onSuccess(result);
-    } catch (error) {
-      onError(
-        error instanceof Error
-          ? error
-          : new Error("An unexpected error occurred")
-      );
+    } catch (error: unknown) {
+      onError(error as Error);
     } finally {
       setIsLoading(false);
     }

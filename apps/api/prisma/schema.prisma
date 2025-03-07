@@ -14,21 +14,29 @@ model User {
   username       String?   @unique
   userTag        UserTag   @default(DEAL_SCOUT)
   email          String    @unique
+  emailVerified  Boolean   @default(false)
+  verificationToken String? 
+  verificationTokenExpiry DateTime?
   password       String
+  pwdResetToken         String?   @db.VarChar(255)
+  pwdResetTokenExpiry   DateTime?
   avatarUrl      String?
   tipsGiven      Tip[]     @relation("GivenTips")
   tipsReceived   Tip[]     @relation("ReceivedTips")
-  accountBalance    Float     @default(0) // Current tip balance, updated on each tip received/payout
-  totalPayOut    Float     @default(0) // Total amount paid out to user
+  accountBalance Float     @default(0)
+  totalPayOut    Float     @default(0)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-  refreshToken   String?   // Store refresh JWT token (bcrypt hashed)
+  refreshToken   String?
   role           Role      @default(USER)
   posts          Post[]
   comments       Comment[]
   votes          Vote[]  
-  payouts        Payout[]  // Relation to Payout history
+  payouts        Payout[]
 
+  @@index([email]) // Index for faster login queries
+  @@index([username]) // Index for faster username lookups
+  @@index([emailVerified]) // Index for date-based user queries
   @@map("users")
 }
 
@@ -65,12 +73,19 @@ model Post {
   downvotesCount      Int       @default(0)
   comments            Comment[]
   votes               Vote[]
-  postType          PostType  @default(TRENDING)
-  promotionDurationWeeks Int?   // Number of weeks the promotion is for (for FEATURED/COMMUNITY)
-  promotionExpiryDate DateTime?   // Defaults to expiryDate for TRENDING (if provided), calculated for promoted posts
-  isActive            Boolean   @default(true) // To control post visibility
-  tips                Tip[] // Relation for tips received for this post
+  postType            PostType  @default(TRENDING)
+  promotionDurationWeeks Int?
+  promotionExpiryDate DateTime?
+  isActive            Boolean   @default(true)
+  tips                Tip[]
 
+  @@index([authorId]) // Index for faster author-based queries
+  @@index([category]) // Index for category filtering
+  @@index([postType]) // Index for filtering by post type
+  @@index([createdAt]) // Index for sorting by date
+  @@index([isActive]) // Index for filtering active posts
+  @@index([upvotesCount(sort: Desc)]) // Index for sorting by popularity
+  @@index([expiryDate]) // Index for filtering by expiry
   @@map("posts")
 }
 
@@ -90,12 +105,16 @@ model Comment {
   postId          String
   post            Post      @relation(fields: [postId], references: [id])
   parentId        String?
-  parentComment   Comment?  @relation("ChildComments", fields: [parentId], references: [id], map: "comment_parent_id_fkey", onDelete: Cascade)    // Self-relation for parent comment
-  childComments   Comment[] @relation("ChildComments")    // Self-relation for child comments
+  parentComment   Comment?  @relation("ChildComments", fields: [parentId], references: [id], map: "comment_parent_id_fkey", onDelete: Cascade)
+  childComments   Comment[] @relation("ChildComments")
   votes           Vote[]
   upvotesCount    Int       @default(0)
-  downvotesCount      Int       @default(0)
+  downvotesCount  Int       @default(0)
 
+  @@index([postId]) // Index for faster comment retrieval by post
+  @@index([authorId]) // Index for retrieving user's comments
+  @@index([parentId]) // Index for faster nested comment queries
+  @@index([createdAt]) // Index for chronological sorting
   @@map("comments")
 }
 
@@ -116,6 +135,8 @@ model Vote {
   commentId String?
   comment   Comment?  @relation(fields: [commentId], references: [id])
 
+  @@index([postId]) // Index for vote counts on posts
+  @@index([commentId]) // Index for vote counts on comments
   @@map("votes")
   @@unique([userId, postId], name: "unique_user_post_vote")
   @@unique([userId, commentId], name: "unique_user_comment_vote")
@@ -133,16 +154,22 @@ model Tip {
   postId    String
   post      Post      @relation(fields: [postId], references: [id])
 
+  @@index([tipperId]) // Index for faster tipper-based queries
+  @@index([receiverId]) // Index for faster receiver-based queries
+  @@index([postId]) // Index for faster post-based tip queries
+  @@index([createdAt]) // Index for time-based reporting
   @@map("tips")
 }
 
 model Payout {
   id            String    @id @default(uuid())
-  amount        Float     // Amount paid out
+  amount        Float
   payoutDate    DateTime  @default(now())
   userId        String
-  user          User      @relation(fields: [userId], references: [id]) // User who received payout
-  transactionId String?   // Optional: If you get transaction IDs from Stripe/Payout service
+  user          User      @relation(fields: [userId], references: [id])
+  transactionId String?
 
+  @@index([userId]) // Index for faster user payout history retrieval
+  @@index([payoutDate]) // Index for date-based queries
   @@map("payouts")
 }

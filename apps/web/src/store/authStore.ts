@@ -12,6 +12,7 @@ export interface User {
   lastName?: string | null;
   role: UserRole;
   avatar?: string | null;
+  emailVerified: boolean;
 }
 
 type AuthState = {
@@ -33,62 +34,79 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const session = await getSession();
-      // Debug session data
-      console.log(
-        "Session during initialize:",
-        session
-          ? {
-              hasUser: !!session.user,
-              hasToken: !!session.accessToken,
-            }
-          : "No session"
-      );
-      set({
-        isAuthenticated: !!session?.user,
-        user: session?.user || null,
-        isLoading: false,
-      });
+      // Only update auth state if we have a valid session
+      if (session?.user && session?.accessToken) {
+        console.log("Session user data:", session.user);
+        set({
+          isAuthenticated: true,
+          user: session.user,
+          isLoading: false,
+        });
+      } else {
+        // No valid session, clear auth state
+        set({
+          isAuthenticated: false,
+          user: null,
+          isLoading: false,
+        });
+      }
     } catch (error) {
       console.error("Failed to initialize auth state:", error);
       set({ isLoading: false, isAuthenticated: false, user: null });
     }
   },
 
-  login: async (credentials) => {
+  login: async (data) => {
     set({ isLoading: true });
     try {
-      // Call your signIn server action directly
-      const result = await signIn(credentials);
+      // Handle both direct login with credentials and passing AuthResponse
+      let result: AuthResponse;
 
-      // Create session with the returned tokens and user data
-      await createSession({
-        user: {
-          id: result.id,
-          email: result.email,
-          username: result.username,
-          firstName: result.firstName,
-          lastName: result.lastName || '',
-          role: result.role,
-          avatar: result.avatar || '',
-        },
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      });
+      if ("password" in data) {
+        // If it's credentials, call signIn
+        result = await signIn(data);
+      } else {
+        // If it's already an AuthResponse (from registration or SSO)
+        result = data;
+      }
 
-      // Update store state
-      set({
-        isAuthenticated: true,
-        user: {
-          id: result.id,
-          email: result.email,
-          username: result.username,
-          firstName: result.firstName,
-          lastName: result.lastName,
-          role: result.role,
-          avatar: result.avatar,
-        },
-        isLoading: false,
-      });
+      // Only create session if we have tokens
+      if (result.accessToken && result.refreshToken) {
+        // Create session with the returned tokens and user data
+        await createSession({
+          user: {
+            id: result.id,
+            email: result.email,
+            username: result.username,
+            firstName: result.firstName,
+            lastName: result.lastName || "",
+            role: result.role,
+            avatar: result.avatar || "",
+            emailVerified: result.emailVerified,
+          },
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        });
+
+        // Update store state
+        set({
+          isAuthenticated: true,
+          user: {
+            id: result.id,
+            email: result.email,
+            username: result.username,
+            firstName: result.firstName,
+            lastName: result.lastName,
+            role: result.role,
+            avatar: result.avatar,
+            emailVerified: result.emailVerified,
+          },
+          isLoading: false,
+        });
+      } else {
+        // Handle registration case where we might not have tokens yet
+        set({ isLoading: false });
+      }
 
       return result;
     } catch (error) {
@@ -115,8 +133,25 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    await deleteSession();
-    set({ user: null, isAuthenticated: false });
+    try {
+      // Call API logout endpoint
+      try {
+        await fetch('/api/auth/signout', { method: 'GET' });
+      } catch (e) {
+        // Fail silently and continue logout process
+        console.error("Error calling signout API:", e);
+      }
+      
+      // Always delete the session
+      await deleteSession();
+      
+      // Clear state
+      set({ user: null, isAuthenticated: false });
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Force clear state even if there was an error
+      set({ user: null, isAuthenticated: false });
+    }
   },
 
   updateUser: async (userData) => {

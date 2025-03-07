@@ -1,58 +1,80 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { UserService } from 'src/user/user.service';
 import { hash, verify } from 'argon2';
-import { UnauthorizedException } from '@nestjs/common';
-import { AuthJwtPayload } from './types/auth-jwtPayload';
 import { JwtService } from '@nestjs/jwt';
 import refreshConfig from './config/refresh.config';
 import { ConfigType } from '@nestjs/config';
 import { Role } from '@prisma/client';
+import { EmailService } from 'src/email/email.service';
+import { nanoid } from 'nanoid';
+import { AuthJwtPayload } from './types/auth-jwtPayload';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
     @Inject(refreshConfig.KEY)
     private readonly refreshTokenConfig: ConfigType<typeof refreshConfig>,
   ) {}
 
-  //SignUp user service
+  // SignUp user service
   async registerUser(createUserDto: CreateUserDto) {
     const userEmailExists = await this.userService.findByEmail(
       createUserDto.email,
     );
     if (userEmailExists)
-      throw new ConflictException('User email already exist!');
+      throw new ConflictException('User email already exists!');
 
     const userUsernameExists = await this.userService.findByUsername(
       createUserDto.username,
     );
     if (userUsernameExists)
-      throw new ConflictException('Username already exist!');
+      throw new ConflictException('Username already exists!');
 
-    const newUser = await this.userService.create(createUserDto);
+    // Generate verification token
+    const verificationToken = nanoid(32);
+    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Then generate and store tokens
-    const { accessToken, refreshToken } = await this.generateJwtToken(
-      newUser.id,
-    );
-    const hashedRefreshToken = await hash(refreshToken);
-    await this.userService.updateHashedRefreshToken(
-      newUser.id,
-      hashedRefreshToken,
-    );
+    // Create user with verification token
+    const newUser = await this.userService.create({
+      ...createUserDto,
+      verificationToken,
+      verificationTokenExpiry,
+    });
 
-    // Return user data with tokens
+    try {
+      // Send verification email
+      await this.emailService.sendVerificationEmail(
+        newUser.email,
+        verificationToken,
+        newUser.username ?? '',
+      );
+    } catch (error) {
+      // Log error but don't fail registration
+      console.error('Failed to send verification email:', error);
+    }
+
+    // Return user data without tokens
     return {
       id: newUser.id,
       email: newUser.email,
       username: newUser.username,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
       role: newUser.role,
       avatar: newUser.avatarUrl,
-      accessToken,
-      refreshToken,
+      emailVerified: newUser.emailVerified,
+      message: 'Registration successful. Please verify your email.',
     };
   }
 
@@ -62,6 +84,12 @@ export class AuthService {
     if (!user)
       throw new UnauthorizedException('Invalid Credentials - Email not found!');
 
+    if (!user.emailVerified) {
+      throw new UnauthorizedException(
+        'Email not verified. Please check your inbox for the verification email.',
+      );
+    }
+
     const isPasswordValid = await verify(user.password, password);
     if (!isPasswordValid)
       throw new UnauthorizedException('Invalid Credentials!');
@@ -70,9 +98,67 @@ export class AuthService {
       id: user.id,
       email: user.email,
       username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
       role: user.role,
       avatar: user.avatarUrl,
     };
+  }
+
+  // Verify email
+  async verifyEmail(token: string) {
+    if (!token) {
+      throw new BadRequestException('Verification token is required');
+    }
+
+    const user = await this.userService.findByVerificationToken(token);
+    if (!user) {
+      throw new BadRequestException('Invalid verification token');
+    }
+
+    if (
+      !user.verificationTokenExpiry ||
+      user.verificationTokenExpiry < new Date()
+    ) {
+      throw new BadRequestException('Verification token has expired');
+    }
+
+    if (user.emailVerified) {
+      return { message: 'Email already verified' };
+    }
+
+    await this.userService.markEmailAsVerified(user.id);
+    return { message: 'Email verified successfully' };
+  }
+
+  // Resend verification email
+  async resendVerificationEmail(email: string) {
+    const user = await this.userService.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (user.emailVerified) {
+      throw new BadRequestException('Email already verified');
+    }
+
+    // Generate new verification token
+    const verificationToken = nanoid(32);
+    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await this.userService.updateVerificationToken(
+      user.id,
+      verificationToken,
+      verificationTokenExpiry,
+    );
+
+    await this.emailService.sendVerificationEmail(
+      user.email,
+      verificationToken,
+      user.username ?? '',
+    );
+
+    return { message: 'Verification email sent successfully' };
   }
 
   // Login user service
@@ -80,12 +166,20 @@ export class AuthService {
     userId: string,
     email?: string,
     username?: string,
+    firstName?: string,
+    lastName?: string,
     role?: Role,
     avatarUrl?: string,
   ) {
     const user = await this.userService.findByUserId(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedException(
+        'Email not verified. Please check your inbox for the verification email.',
+      );
     }
 
     const { accessToken, refreshToken } = await this.generateJwtToken(userId);
@@ -95,6 +189,8 @@ export class AuthService {
       id: userId,
       email: email || user.email,
       username: username || user.username,
+      firstName: firstName || user.firstName,
+      lastName: lastName || user.lastName,
       role: role || user.role,
       avatar: avatarUrl || user.avatarUrl,
       accessToken,
@@ -120,6 +216,8 @@ export class AuthService {
       id: user.id,
       email: user.email,
       username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
       role: user.role,
       avatar: user.avatarUrl,
     };
@@ -138,6 +236,8 @@ export class AuthService {
       id: user.id,
       email: user.email,
       username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
       role: user.role,
       avatar: user.avatarUrl,
     };
@@ -148,6 +248,8 @@ export class AuthService {
     userId: string,
     email?: string,
     username?: string,
+    firstName?: string,
+    lastName?: string,
     role?: Role,
     avatarUrl?: string,
   ) {
@@ -158,6 +260,8 @@ export class AuthService {
       id: userId,
       email: email,
       username: username,
+      firstName: firstName,
+      lastName: lastName,
       role: role,
       avatar: avatarUrl,
       accessToken,
@@ -167,10 +271,99 @@ export class AuthService {
 
   // Google OAuth service
   async validateGoogleOAuthUser(googleUser: CreateUserDto) {
-    // Implement Google OAuth service
-    const user = await this.userService.findByEmail(googleUser.email);
-    if (user) return user;
-    return this.userService.create(googleUser);
+    try {
+      // Check if user exists
+      let user = await this.userService.findByEmail(googleUser.email);
+
+      if (user) {
+        // If user exists but email not verified, mark it as verified
+        if (user.emailVerified === false) {
+          await this.userService.markEmailAsVerified(user.id);
+          // Get updated user info
+          user = await this.userService.findByEmail(googleUser.email);
+        }
+
+        return user;
+      } else {
+        // Create new user with email already verified
+        const randomPassword = nanoid(16);
+        const hashedPassword = await hash(randomPassword);
+
+        // Create new user with verification already done
+        const newUser = await this.userService.create({
+          ...googleUser,
+          password: hashedPassword,
+          emailVerified: true, // Auto-verify Google OAuth users
+        });
+
+        return newUser;
+      }
+    } catch (error) {
+      console.error(
+        'Google OAuth user validation error',
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new InternalServerErrorException(
+        'Failed to authenticate with Google',
+      );
+    }
+  }
+
+  // Forgot password
+  async forgotPassword(email: string) {
+    const user = await this.userService.findByEmail(email);
+    if (!user) {
+      // Return success even if user not found for security reasons
+      return {
+        message:
+          'If your email exists in our system, you will receive a password reset link.',
+      };
+    }
+
+    // Generate reset token
+    const pwdResetToken = nanoid(32);
+    const pwdResetTokenExpiry = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour
+
+    await this.userService.updatePasswordResetToken(
+      user.id,
+      pwdResetToken,
+      pwdResetTokenExpiry,
+    );
+
+    await this.emailService.sendPasswordResetEmail(
+      user.email,
+      pwdResetToken,
+      user.username ?? '',
+    );
+
+    return {
+      message:
+        'If your email exists in our system, you will receive a password reset link.',
+    };
+  }
+
+  // Reset password
+  async resetPassword(token: string, password: string) {
+    if (!token) {
+      throw new BadRequestException('Reset token is required');
+    }
+
+    const user = await this.userService.findByPasswordResetToken(token);
+    if (!user) {
+      throw new BadRequestException('Invalid reset token');
+    }
+
+    if (!user.pwdResetTokenExpiry || user.pwdResetTokenExpiry < new Date()) {
+      throw new BadRequestException('Reset token has expired');
+    }
+
+    // Hash the new password
+    const hashedPassword = await hash(password);
+
+    // Update user password and clear reset token
+    await this.userService.updatePassword(user.id, hashedPassword);
+
+    return { message: 'Password has been reset successfully' };
   }
 
   // Sign out service

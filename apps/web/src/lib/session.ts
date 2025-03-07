@@ -2,7 +2,6 @@
 
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 export type Session = {
   user: {
@@ -13,6 +12,7 @@ export type Session = {
     lastName: string;
     role: "USER" | "ADMIN";
     avatar: string;
+    emailVerified: boolean;
   };
   accessToken: string;
   refreshToken: string;
@@ -22,21 +22,27 @@ const secretKey = process.env.NEXT_PUBLIC_SESSION_SECRET_KEY!;
 const encodedKey = new TextEncoder().encode(secretKey);
 
 export async function createSession(payload: Session) {
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days
+  try {
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days
 
-  const session = await new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(expiresAt.getTime())
-    .sign(encodedKey);
+    const session = await new SignJWT(payload)
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime(expiresAt.getTime())
+      .sign(encodedKey);
 
-  (await cookies()).set("session", session, {
-    httpOnly: true,
-    secure: true,
-    expires: expiresAt,
-    sameSite: "lax",
-    path: "/",
-  });
+    (await cookies()).set("session", session, {
+      httpOnly: true,
+      secure: true,
+      expires: expiresAt,
+      sameSite: "lax",
+      path: "/",
+    });
+    return true;
+  } catch (error) {
+    console.error("Error creating session:", error);
+    return false;
+  }
 }
 
 export async function getSession() {
@@ -50,7 +56,7 @@ export async function getSession() {
     return payload as Session;
   } catch (error) {
     console.error("Failed to verify the session:", error);
-    redirect("/auth/signin");
+    return null;
   }
 }
 
@@ -58,9 +64,10 @@ export async function deleteSession() {
   try {
     const cookieStore = await cookies();
     cookieStore.delete("session");
+    return true;
   } catch (error) {
     console.error("Error deleting session:", error);
-    // Continue even if there's an error
+    return false;
   }
 }
 
@@ -71,18 +78,23 @@ export async function updateTokens({
   accessToken: string;
   refreshToken: string;
 }) {
-  const cookie = (await cookies()).get("session")?.value;
-  if (!cookie) return null;
+  try {
+    const cookie = (await cookies()).get("session")?.value;
+    if (!cookie) return null;
 
-  const { payload } = await jwtVerify<Session>(cookie, encodedKey);
+    const { payload } = await jwtVerify<Session>(cookie, encodedKey);
 
-  if (!payload) throw new Error("Session payload not found!");
+    if (!payload) throw new Error("Session payload not found!");
 
-  const newPayload: Session = {
-    user: { ...payload.user },
-    accessToken,
-    refreshToken,
-  };
+    const newPayload: Session = {
+      user: { ...payload.user },
+      accessToken,
+      refreshToken,
+    };
 
-  await createSession(newPayload);
+    return await createSession(newPayload);
+  } catch (error) {
+    console.error("Error updating tokens:", error);
+    return false;
+  }
 }

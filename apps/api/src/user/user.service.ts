@@ -14,19 +14,90 @@ export class UserService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
+  async create(
+    createUserDto: CreateUserDto & {
+      verificationToken?: string;
+      verificationTokenExpiry?: Date;
+      emailVerified?: boolean; // Add this to the type
+    },
+  ): Promise<User> {
     try {
-      const { password, ...user } = createUserDto;
+      const {
+        password,
+        verificationToken,
+        verificationTokenExpiry,
+        emailVerified = false, // Default to false if not provided
+        ...user
+      } = createUserDto;
+
       const hashedPassword = await hash(password);
       return await this.prisma.user.create({
         data: {
           password: hashedPassword,
           ...user,
+          verificationToken,
+          verificationTokenExpiry,
+          emailVerified, // Include in data
         },
       });
     } catch (error) {
       this.logger.error('Error creating user', (error as Error).stack);
       throw new InternalServerErrorException('Error creating user');
+    }
+  }
+
+  async markEmailAsVerified(userId: string): Promise<User> {
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          emailVerified: true,
+          verificationToken: null,
+          verificationTokenExpiry: null,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        'Error marking email as verified',
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException('Error marking email as verified');
+    }
+  }
+
+  async findByVerificationToken(token: string) {
+    try {
+      return await this.prisma.user.findFirst({
+        where: { verificationToken: token },
+      });
+    } catch (error) {
+      this.logger.error(
+        'Error finding user by verification token',
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException(
+        'Error finding user by verification token',
+      );
+    }
+  }
+
+  async updateVerificationToken(userId: string, token: string, expiry: Date) {
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          verificationToken: token,
+          verificationTokenExpiry: expiry,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        'Error updating verification token',
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException(
+        'Error updating verification token',
+      );
     }
   }
 
@@ -41,9 +112,14 @@ export class UserService {
           email: true,
           password: true,
           username: true,
+          firstName: true,
+          lastName: true,
           role: true,
           refreshToken: true,
-          avatarUrl: true, // Make sure avatarUrl is included in selection
+          avatarUrl: true,
+          emailVerified: true,
+          verificationToken: true,
+          verificationTokenExpiry: true,
         },
       });
     } catch (error) {
@@ -63,9 +139,14 @@ export class UserService {
           email: true,
           password: true,
           username: true,
+          firstName: true,
+          lastName: true,
           role: true,
           refreshToken: true,
-          avatarUrl: true, // Make sure avatarUrl is included in selection
+          avatarUrl: true,
+          emailVerified: true,
+          verificationToken: true,
+          verificationTokenExpiry: true,
         },
       });
     } catch (error) {
@@ -88,9 +169,14 @@ export class UserService {
           email: true,
           password: true,
           username: true,
+          firstName: true,
+          lastName: true,
           role: true,
           refreshToken: true,
-          avatarUrl: true, // Make sure avatarUrl is included in selection
+          avatarUrl: true,
+          emailVerified: true,
+          verificationToken: true,
+          verificationTokenExpiry: true,
         },
       });
     } catch (error) {
@@ -107,5 +193,57 @@ export class UserService {
       where: { id: userId },
       data: { refreshToken: hashedRefreshToken },
     });
+  }
+
+  async updatePasswordResetToken(userId: string, token: string, expiry: Date) {
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          pwdResetToken: token,
+          pwdResetTokenExpiry: expiry,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        'Error updating password reset token',
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException(
+        'Error updating password reset token',
+      );
+    }
+  }
+
+  async findByPasswordResetToken(token: string) {
+    try {
+      return await this.prisma.user.findFirst({
+        where: { pwdResetToken: token },
+      });
+    } catch (error) {
+      this.logger.error(
+        'Error finding user by reset token',
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException(
+        'Error finding user by reset token',
+      );
+    }
+  }
+
+  async updatePassword(userId: string, hashedPassword: string) {
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedPassword,
+          pwdResetToken: null,
+          pwdResetTokenExpiry: null,
+        },
+      });
+    } catch (error) {
+      this.logger.error('Error updating password', (error as Error).stack);
+      throw new InternalServerErrorException('Error updating password');
+    }
   }
 }

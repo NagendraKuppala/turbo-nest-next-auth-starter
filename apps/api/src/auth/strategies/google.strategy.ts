@@ -50,7 +50,22 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
         password: '',
       });
 
-      done(null, user);
+      if (!user) {
+        throw new UnauthorizedException(
+          'Failed to authenticate with Google OAuth!',
+        );
+      }
+
+      done(null, {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        avatarUrl: user.avatarUrl,
+        emailVerified: true, // Important: Mark as verified
+      });
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         throw error;

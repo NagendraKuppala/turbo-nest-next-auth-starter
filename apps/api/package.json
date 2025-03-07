@@ -19,8 +19,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.758.0",
     "@nestjs/common": "^11.0.11",
-    "@nestjs/config": "^4.0.0",
+    "@nestjs/config": "^4.0.1",
     "@nestjs/core": "^11.0.11",
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/mapped-types": "*",
@@ -28,6 +29,9 @@
     "@nestjs/platform-express": "^11.0.11",
     "@prisma/client": "^6.4.1",
     "argon2": "^0.41.1",
+    "fs-extra": "^11.3.0",
+    "handlebars": "^4.7.8",
+    "nanoid": "^5.1.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",

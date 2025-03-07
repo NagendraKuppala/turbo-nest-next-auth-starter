@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Res,
+  Query,
+  HttpCode,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { LocalAuthGuard } from './guards/local-auth/local-auth.guard';
@@ -21,6 +29,19 @@ export class AuthController {
   }
 
   @Public()
+  @Get('verify-email')
+  verifyEmail(@Query('token') token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
+  @Public()
+  @Post('resend-verification')
+  @HttpCode(200)
+  resendVerificationEmail(@Body() body: { email: string }) {
+    return this.authService.resendVerificationEmail(body.email);
+  }
+
+  @Public()
   @UseGuards(LocalAuthGuard)
   @Post('signin')
   loginUser(
@@ -30,6 +51,8 @@ export class AuthController {
         id: string;
         email?: string;
         username?: string;
+        firstName?: string;
+        lastName?: string;
         role?: Role;
         avatarUrl?: string;
       };
@@ -39,6 +62,8 @@ export class AuthController {
       req.user.id,
       req.user.email,
       req.user.username,
+      req.user.firstName,
+      req.user.lastName,
       req.user.role,
       req.user.avatarUrl,
     );
@@ -54,6 +79,8 @@ export class AuthController {
         id: string;
         email?: string;
         username?: string;
+        firstName?: string;
+        lastName?: string;
         role?: Role;
         avatarUrl?: string;
       };
@@ -63,6 +90,8 @@ export class AuthController {
       req.user.id,
       req.user.email,
       req.user.username,
+      req.user.firstName,
+      req.user.lastName,
       req.user.role,
       req.user.avatarUrl,
     );
@@ -83,8 +112,11 @@ export class AuthController {
         id: string;
         email?: string;
         username?: string;
+        firstName?: string;
+        lastName?: string;
         role?: Role;
         avatarUrl?: string;
+        emailVerified?: boolean;
       };
     },
     @Res() res: Response,
@@ -93,6 +125,8 @@ export class AuthController {
       req.user.id,
       req.user.email,
       req.user.username,
+      req.user.firstName,
+      req.user.lastName,
       req.user.role,
       req.user.avatarUrl,
     );
@@ -102,8 +136,11 @@ export class AuthController {
       userId: response.id,
       email: response.email ?? '',
       username: response.username ?? '',
+      firstName: response.firstName ?? '',
+      lastName: response.lastName ?? '',
       role: response.role ?? '',
       avatar: response.avatar ?? '',
+      emailVerified: 'true',
     }).toString();
     const frontendUrl = process.env.FRONTEND_URL;
     res.redirect(`${frontendUrl}/api/auth/google/callback?${queryParams}`);
@@ -114,11 +151,40 @@ export class AuthController {
     return this.authService.signOut(req.user.id);
   }
 
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(200)
+  forgotPassword(@Body() body: { email: string }) {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(200)
+  resetPassword(@Body() body: { token: string; password: string }) {
+    return this.authService.resetPassword(body.token, body.password);
+  }
+
   @Roles('ADMIN')
-  @Get('posts')
-  protectedRoute(@Request() req: { user: { id: string; email?: string } }) {
+  @Get('admin/dashboard')
+  adminRoute(@Request() req: { user: { id: string; email?: string } }) {
     return {
       message: `This route is protected by JWT. User ID: ${req.user.id} Email: ${req.user.email}`,
+    };
+  }
+
+  @Get('profile')
+  profileRoute(@Request() req: { user: { id: string; email?: string } }) {
+    return {
+      message: `This route is protected by JWT. User ID: ${req.user.id} Email: ${req.user.email}`,
+    };
+  }
+
+  @Public()
+  @Get('posts')
+  postRoute() {
+    return {
+      message: `This route is public. You can access Posts page without authentication.`,
     };
   }
 }

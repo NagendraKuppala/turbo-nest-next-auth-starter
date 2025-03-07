@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsString,
   IsOptional,
+  IsBoolean,
   Length,
   Matches,
 } from 'class-validator';
@@ -38,4 +39,8 @@ export class CreateUserDto {
       'Password must be at least 8 characters long, contain at least one uppercase letter, one number, and one special character',
   })
   password: string;
+
+  @IsOptional()
+  @IsBoolean()
+  emailVerified?: boolean;
 }
