@@ -6,10 +6,15 @@ import {
   ResendVerificationResponse,
   ResetPasswordResponse,
   ForgotPasswordResponse,
+  ProfileUpdateResponse,
+  PasswordUpdateResponse,
+  ProfileUpdateData,
+  PasswordUpdateData,
 } from "./authTypes";
-import { deleteSession, updateTokens } from "./session";
+import { deleteSession, updateTokens, updateSession } from "./session";
 import { ApiError } from "./error";
 import { config } from "@/config";
+import { authFetch } from "./authFetch";
 
 export async function signIn(
   credentials: SignInFormData
@@ -225,5 +230,63 @@ export async function resetPassword(
       throw error;
     }
     throw new Error("Failed to reset password. Please try again.");
+  }
+}
+
+export async function updateProfile(data: ProfileUpdateData): Promise<ProfileUpdateResponse> {
+  try {
+    const response = await authFetch(`${config.api.url}/auth/updateProfile`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+    await updateSession(response);
+    return response;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new Error("Failed to update profile. Please try again.");
+  }
+}
+
+
+export async function updatePassword(data: PasswordUpdateData): Promise<PasswordUpdateResponse> {
+  try {
+    const response = await authFetch(`${config.api.url}/auth/updatePassword`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    return response;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new Error("Failed to change password. Please try again.");
+  }
+}
+
+
+export async function updateAvatar(file: File) {
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  try {
+    const response = await authFetch(`${config.api.url}/users/avatar`, {
+      method: "POST",
+      body: formData,
+    });
+    return response;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new Error("Failed to update avatar. Please try again.");
   }
 }

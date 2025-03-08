@@ -246,4 +246,23 @@ export class UserService {
       throw new InternalServerErrorException('Error updating password');
     }
   }
+
+  async updateProfile(
+    userId: string,
+    profileData: Partial<{
+      firstName: string;
+      lastName?: string;
+      username: string;
+    }>,
+  ) {
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: profileData,
+      });
+    } catch (error) {
+      this.logger.error('Error updating user profile', (error as Error).stack);
+      throw new InternalServerErrorException('Error updating user profile');
+    }
+  }
 }

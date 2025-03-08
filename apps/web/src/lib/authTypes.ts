@@ -112,3 +112,61 @@ export const forgotPasswordSchema = z.object({
 
 export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+
+// Profile schema for updating user profile
+export const profileSchema = z.object({
+  firstName: z.string().max(20).min(2, "First Name must be at least 2 characters"),
+  lastName: z.string().max(20).optional(),
+  username: z.string().max(20).min(2, "Username must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+});
+
+// Password change schema
+export const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(
+        /[^A-Za-z0-9]/,
+        "Password must contain at least one special character"
+      ),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+export type ProfileFormValues = z.infer<typeof profileSchema>;
+export type PasswordFormValues = z.infer<typeof passwordSchema>;
+
+export interface ProfileUpdateData {
+  firstName: string;
+  lastName?: string;
+  username: string;
+}
+
+export interface PasswordUpdateData {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ProfileUpdateResponse {
+  id: string;
+  email: string;
+  username: string;
+  firstName: string;
+  lastName?: string;
+  role: UserRole;
+  avatar?: string;
+  emailVerified: boolean;
+}
+
+export interface PasswordUpdateResponse {
+  message: string;
+}

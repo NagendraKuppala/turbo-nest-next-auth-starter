@@ -3,12 +3,15 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Res,
   Query,
   HttpCode,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
+import { UpdateProfileDto } from '../user/dto/update-profile.dto';
+import { UpdatePasswordDto } from '../user/dto/update-password.dto';
 import { LocalAuthGuard } from './guards/local-auth/local-auth.guard';
 import { Request, UseGuards } from '@nestjs/common';
 import { RefreshAuthGuard } from './guards/refresh-auth/refresh-auth.guard';
@@ -163,6 +166,26 @@ export class AuthController {
   @HttpCode(200)
   resetPassword(@Body() body: { token: string; password: string }) {
     return this.authService.resetPassword(body.token, body.password);
+  }
+
+  @Patch('updateProfile')
+  async updateProfile(
+    @Request() req: { user: { id: string } },
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    return this.authService.updateUserProfile(req.user.id, updateProfileDto);
+  }
+
+  @Patch('updatePassword')
+  async updatePassword(
+    @Request() req: { user: { id: string } },
+    @Body() updatePasswordDto: UpdatePasswordDto,
+  ) {
+    return this.authService.changeUserPassword(
+      req.user.id,
+      updatePasswordDto.currentPassword,
+      updatePasswordDto.newPassword,
+    );
   }
 
   @Roles('ADMIN')

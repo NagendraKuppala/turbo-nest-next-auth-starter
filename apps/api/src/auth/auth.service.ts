@@ -5,8 +5,10 @@ import {
   UnauthorizedException,
   BadRequestException,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from '../user/dto/create-user.dto';
+import { UpdateProfileDto } from '../user/dto/update-profile.dto';
 import { UserService } from 'src/user/user.service';
 import { hash, verify } from 'argon2';
 import { JwtService } from '@nestjs/jwt';
@@ -364,6 +366,83 @@ export class AuthService {
     await this.userService.updatePassword(user.id, hashedPassword);
 
     return { message: 'Password has been reset successfully' };
+  }
+
+  // Update user profile
+  async updateUserProfile(userId: string, updateProfileDto: UpdateProfileDto) {
+    try {
+      // Check if username already exists for another user
+      if (updateProfileDto.username) {
+        const existingUser = await this.userService.findByUsername(
+          updateProfileDto.username,
+        );
+
+        if (existingUser && existingUser.id !== userId) {
+          throw new ConflictException('Username is already taken');
+        }
+      }
+
+      // Update the user profile
+      const updatedUser = await this.userService.updateProfile(userId, {
+        firstName: updateProfileDto.firstName,
+        lastName: updateProfileDto.lastName,
+        username: updateProfileDto.username,
+      });
+
+      return {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        username: updatedUser.username,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        role: updatedUser.role,
+        avatar: updatedUser.avatarUrl,
+        emailVerified: updatedUser.emailVerified,
+      };
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error updating user profile');
+    }
+  }
+
+  // Change user password
+  async changeUserPassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    try {
+      // Find the user
+      const user = await this.userService.findByUserId(userId);
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Verify current password
+      const isPasswordValid = await verify(user.password, currentPassword);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
+
+      // Hash the new password
+      const hashedPassword = await hash(newPassword);
+
+      // Update the password
+      await this.userService.updatePassword(userId, hashedPassword);
+
+      return { message: 'Password changed successfully' };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof UnauthorizedException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error changing password');
+    }
   }
 
   // Sign out service

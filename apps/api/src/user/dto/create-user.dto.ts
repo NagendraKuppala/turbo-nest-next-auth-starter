@@ -3,26 +3,28 @@ import {
   IsString,
   IsOptional,
   IsBoolean,
-  Length,
+  MinLength,
+  MaxLength,
   Matches,
 } from 'class-validator';
 
 export class CreateUserDto {
   @IsString()
-  @Length(1, 20)
+  @MinLength(2, { message: 'First Name must be at least 2 characters' })
+  @MaxLength(20, { message: 'First Name must be less than 20 characters' })
   firstName: string;
 
   @IsString()
-  @Length(1, 20)
   @IsOptional()
+  @MaxLength(20, { message: 'Last Name must be less than 20 characters' })
   lastName: string;
 
   @IsString()
-  @Length(1, 20)
+  @MinLength(2, { message: 'Username must be at least 2 characters' })
+  @MaxLength(20, { message: 'Username must be less than 20 characters' })
   @Matches(/^[a-zA-Z0-9_]+$/, {
     message: 'Username can only contain letters, numbers, and underscores',
   })
-  @IsOptional()
   username: string;
 
   @IsOptional()
@@ -33,10 +35,16 @@ export class CreateUserDto {
   email: string;
 
   @IsString()
-  @Length(8, 100)
-  @Matches(/^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, {
-    message:
-      'Password must be at least 8 characters long, contain at least one uppercase letter, one number, and one special character',
+  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  @Matches(/[A-Z]/, {
+    message: 'Password must contain at least one uppercase letter',
+  })
+  @Matches(/[a-z]/, {
+    message: 'Password must contain at least one lowercase letter',
+  })
+  @Matches(/[0-9]/, { message: 'Password must contain at least one number' })
+  @Matches(/[^A-Za-z0-9]/, {
+    message: 'Password must contain at least one special character',
   })
   password: string;
 

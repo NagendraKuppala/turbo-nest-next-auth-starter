@@ -60,6 +60,30 @@ export async function getSession() {
   }
 }
 
+export async function updateSession(userData: Partial<User>): Promise<void> {
+  try {
+    // Get the current session
+    const session = await getSession();
+    
+    if (!session?.user) {
+      throw new Error("No active session found");
+    }
+    // Update the user data in the session
+    const updatedUser = {
+      ...session.user,
+      ...userData
+    };
+    // Save the updated session
+    await createSession({
+      ...session,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Failed to update session user data:", error);
+    throw error;
+  }
+}
+
 export async function deleteSession() {
   try {
     const cookieStore = await cookies();
