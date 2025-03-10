@@ -36,7 +36,7 @@ export default function RootLayout({
         className={cn(
           geistSans.variable,
           geistMono.variable,
-          "flex min-h-screen flex-col"
+          "flex min-h-screen flex-col px-4"
         )}
         suppressHydrationWarning
       >
