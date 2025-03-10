@@ -76,7 +76,7 @@ export function ProfileForm({ onError, onSuccess }: ProfileFormProps) {
         <CardTitle>Profile Information</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name <span className="text-red-500">*</span></Label>

@@ -51,7 +51,7 @@ export function PasswordForm({ onError, onSuccess }: PasswordFormProps) {
         <CardTitle>Change Password</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-4">
           <div className="space-y-2">
             <Label htmlFor="currentPassword">
               Current Password <span className="text-red-500">*</span>

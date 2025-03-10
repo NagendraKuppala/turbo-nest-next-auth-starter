@@ -10,12 +10,12 @@ export const signInSchema = z.object({
     .string()
     .min(8, { message: "Password must be at least 8 characters" })
     .max(100)
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-      {
-        message:
-          "Password must contain at least one uppercase letter, one lowercase letter, one numeric and one special character",
-      }
+      /[^A-Za-z0-9]/,
+      "Password must contain at least one special character"
     ),
 });
 
@@ -34,11 +34,14 @@ export const signUpSchema = z
     email: z.string().email({ message: "Enter a valid email address" }),
     password: z
       .string()
-      .min(8, { message: "Password must be at least 8 characters long" })
-      .regex(/^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).+$/, {
-        message:
-          "Password must contain at least one uppercase letter, one number, and one special character",
-      }),
+      .min(8, { message: "Password must be at least 8 characters" })
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(
+        /[^A-Za-z0-9]/,
+        "Password must contain at least one special character"
+      ),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -115,7 +118,10 @@ export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
 // Profile schema for updating user profile
 export const profileSchema = z.object({
-  firstName: z.string().max(20).min(2, "First Name must be at least 2 characters"),
+  firstName: z
+    .string()
+    .max(20)
+    .min(2, "First Name must be at least 2 characters"),
   lastName: z.string().max(20).optional(),
   username: z.string().max(20).min(2, "Username must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),

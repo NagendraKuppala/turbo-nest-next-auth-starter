@@ -50,7 +50,7 @@ export function AvatarUpload({ onError, onSuccess }: AvatarUploadProps) {
       <CardHeader>
         <CardTitle>Profile Picture</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col items-center">
+      <CardContent className="flex flex-col items-center p-4">
         <div className="mb-6">
           <Avatar className="w-32 h-32">
             {user.avatar ? (

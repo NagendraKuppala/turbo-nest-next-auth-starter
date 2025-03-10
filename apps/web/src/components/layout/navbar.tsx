@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModeToggle } from "@/components/mode-toggle";
-import { Search, Menu } from "lucide-react";
+import { Search, Menu, SquarePlus } from "lucide-react";
 import {
   Sheet,
   SheetClose,
@@ -27,6 +27,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const { isAuthenticated, user, logout, isLoading } = useAuthStore();
@@ -50,12 +61,29 @@ export function Navbar() {
 
   const showAuthUI = mounted && !isLoading;
 
-  const logoSrc = mounted ? (resolvedTheme === "dark" ? "/logo-dark.svg" : "/logo-light.svg") : "/logo-light.svg";
+  const logoSrc = mounted
+    ? resolvedTheme === "dark"
+      ? "/logo-dark.svg"
+      : "/logo-light.svg"
+    : "/logo-light.svg";
 
   const [isOpen, setIsOpen] = useState(false);
   const navItems = [
-    { href: "/", label: "Deals" },
-    { href: "/posts/new", label: "Post" },
+    {
+      href: "/",
+      label: "Deals",
+      hasSubmenu: true,
+      submenuItems: [
+        { href: "/community-picks", label: "Community Picks" },
+        { href: "/featured-deals", label: "Featured Deals" },
+        { href: "/trending-deals", label: "Trending Deals" },
+      ],
+    },
+    {
+      href: "/posts/new",
+      label: "Post",
+      icon: <SquarePlus className="h-4 w-4 ml-1" />,
+    },
     { href: "/flyers", label: "Flyers" },
     { href: "/deal-alerts", label: "Deal Alerts" },
     { href: "/news", label: "News" },
@@ -95,23 +123,54 @@ export function Navbar() {
         <nav className="flex items-center gap-4">
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-4">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="relative text-sm font-medium transition-colors hover:text-primary group"
-              >
-                {item.label}
-                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary transform scale-x-0 transition-transform duration-300 ease-out group-hover:scale-x-100" />
-              </Link>
-            ))}
+            <NavigationMenu>
+              <NavigationMenuList>
+                {navItems.map((item) => {
+                  if (item.hasSubmenu) {
+                    return (
+                      <NavigationMenuItem key={item.href}>
+                        <NavigationMenuTrigger className="text-sm font-medium transition-colors hover:text-primary">
+                          {item.label}
+                        </NavigationMenuTrigger>
+                        <NavigationMenuContent>
+                          <ul className="grid min-w-[180px] w-max max-w-[300px] gap-2 p-2 grid-cols-1">
+                            {item.submenuItems.map((subItem) => (
+                              <ListItem
+                                key={subItem.href}
+                                title={subItem.label}
+                                href={subItem.href}
+                              >
+                                {/* description property */}
+                              </ListItem>
+                            ))}
+                          </ul>
+                        </NavigationMenuContent>
+                      </NavigationMenuItem>
+                    );
+                  } else {
+                    return (
+                      <NavigationMenuItem key={item.href}>
+                        <Link href={item.href} legacyBehavior passHref>
+                          <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                            <span className="flex items-center">
+                              {item.label}
+                              {item.icon && item.icon}
+                            </span>
+                          </NavigationMenuLink>
+                        </Link>
+                      </NavigationMenuItem>
+                    );
+                  }
+                })}
+              </NavigationMenuList>
+            </NavigationMenu>
           </div>
 
           {/* Sign In Button - Always Visible */}
           {showAuthUI && (
             <>
               {isAuthenticated && user ? (
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
@@ -139,8 +198,12 @@ export function Navbar() {
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleProfileClick}>
-                      Profile
+                      My Account
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleProfileClick}>
+                      Profile Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout}>
                       Sign Out
                     </DropdownMenuItem>
@@ -160,7 +223,7 @@ export function Navbar() {
 
           {/* Tablet/Mobile Navigation */}
           <div className="flex lg:hidden items-center gap-2">
-            <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <Sheet open={isOpen} onOpenChange={setIsOpen} modal={false}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Menu className="h-5 w-5" />
@@ -186,18 +249,42 @@ export function Navbar() {
                   </div>
 
                   {/* Navigation Items */}
-                  <div className="flex flex-col gap-4">
-                    {navItems.map((item) => (
-                      <SheetClose asChild key={item.href}>
-                        <Link
-                          href={item.href}
-                          className="text-sm font-medium hover:bg-secondary rounded-md transition-all duration-300 hover:pl-4 flex items-center"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          {item.label}
-                        </Link>
-                      </SheetClose>
-                    ))}
+                  <div className="flex flex-col gap-4 py-2">
+                    {navItems.map((item) => {
+                      if (item.hasSubmenu) {
+                        return (
+                          <div key={item.href} className="flex flex-col gap-2">
+                            <p className="font-medium text-sm">{item.label}</p>
+                            <div className="border-l-2 border-muted pl-4 flex flex-col gap-2">
+                              {item.submenuItems.map((subItem) => (
+                                <SheetClose asChild key={subItem.href}>
+                                  <Link
+                                    href={subItem.href}
+                                    className="text-sm font-medium hover:bg-secondary rounded-md py-2 px-3 transition-all duration-300 flex items-center"
+                                    onClick={() => setIsOpen(false)}
+                                  >
+                                    {subItem.label}
+                                  </Link>
+                                </SheetClose>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <SheetClose asChild key={item.href}>
+                            <Link
+                              href={item.href}
+                              className="text-sm font-medium hover:bg-secondary rounded-md py-2 px-3 transition-all flex items-center"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <span>{item.label}</span>
+                              {item.icon && item.icon}
+                            </Link>
+                          </SheetClose>
+                        );
+                      }
+                    })}
                   </div>
                 </div>
               </SheetContent>
@@ -208,3 +295,31 @@ export function Navbar() {
     </header>
   );
 }
+
+const ListItem = React.forwardRef<
+  React.ComponentRef<"a">,
+  React.ComponentPropsWithoutRef<"a">
+>(({ className, title, children, ...props }, ref) => {
+  return (
+    <li>
+      <NavigationMenuLink asChild>
+        <a
+          ref={ref}
+          className={cn(
+            "block select-none rounded-md p-2 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+            className
+          )}
+          {...props}
+        >
+          <div className="text-sm font-medium leading-none">{title}</div>
+          {children && (
+            <p className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
+              {children}
+            </p>
+          )}
+        </a>
+      </NavigationMenuLink>
+    </li>
+  );
+});
+ListItem.displayName = "ListItem";
