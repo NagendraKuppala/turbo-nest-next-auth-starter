@@ -239,6 +239,7 @@ export class AuthService {
       lastName: lastName || user.lastName,
       role: role || user.role,
       avatar: avatarUrl || user.avatarUrl,
+      emailVerified: user.emailVerified,
       accessToken,
       refreshToken,
     };
@@ -320,6 +321,7 @@ export class AuthService {
     try {
       // Check if user exists
       let user = await this.userService.findByEmail(googleUser.email);
+      let isNewUser = false;
 
       if (user) {
         // If user exists but email not verified, mark it as verified
@@ -329,20 +331,22 @@ export class AuthService {
           user = await this.userService.findByEmail(googleUser.email);
         }
 
-        return user;
+        return { user, isNewUser };
       } else {
         // Create new user with email already verified
         const randomPassword = nanoid(16);
         const hashedPassword = await hash(randomPassword);
-
+        isNewUser = true;
         // Create new user with verification already done
         const newUser = await this.userService.create({
           ...googleUser,
           password: hashedPassword,
           emailVerified: true, // Auto-verify Google OAuth users
+          termsAccepted: false, // Require explicit terms acceptance
+          newsletterOptIn: false,
         });
 
-        return newUser;
+        return { newUser, isNewUser };
       }
     } catch (error) {
       console.error(
@@ -486,6 +490,46 @@ export class AuthService {
         throw error;
       }
       throw new InternalServerErrorException('Error changing password');
+    }
+  }
+
+  async acceptOAuthTerms(
+    userId: string,
+    termsAccepted: boolean,
+    newsletterOptIn: boolean = false,
+  ) {
+    if (!termsAccepted) {
+      throw new BadRequestException(
+        'Terms and Privacy Policy must be accepted',
+      );
+    }
+
+    try {
+      const user = await this.userService.findByUserId(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      await this.userService.updateTermsAcceptance(
+        userId,
+        termsAccepted,
+        newsletterOptIn,
+      );
+
+      return {
+        message: 'Terms acceptance recorded successfully',
+        success: true,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Error recording terms acceptance',
+      );
     }
   }
 

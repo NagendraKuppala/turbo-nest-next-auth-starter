@@ -293,3 +293,42 @@ export async function updateAvatar(file: File) {
     throw new Error("Failed to update avatar. Please try again.");
   }
 }
+
+
+export async function acceptOAuthTerms(
+  userId: string,
+  termsAccepted: boolean,
+  newsletterOptIn: boolean = false,
+  accessToken: string
+): Promise<{ message: string; success: boolean }> {
+  try {
+    const response = await fetch(`${config.api.url}/auth/oauth/accept-terms`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        userId,
+        termsAccepted,
+        newsletterOptIn,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(
+        errorData.message || "Failed to accept terms",
+        response.status,
+        errorData.errors
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new Error("Failed to accept terms. Please try again.");
+  }
+}

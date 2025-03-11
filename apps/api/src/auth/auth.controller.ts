@@ -12,6 +12,7 @@ import { AuthService } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { UpdateProfileDto } from '../user/dto/update-profile.dto';
 import { UpdatePasswordDto } from '../user/dto/update-password.dto';
+import { AcceptTermsDto } from '../user/dto/accept-terms.dto';
 import { LocalAuthGuard } from './guards/local-auth/local-auth.guard';
 import { Request, UseGuards } from '@nestjs/common';
 import { RefreshAuthGuard } from './guards/refresh-auth/refresh-auth.guard';
@@ -20,10 +21,14 @@ import { Response } from 'express';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Public()
   @Post('register')
@@ -120,33 +125,76 @@ export class AuthController {
         role?: Role;
         avatarUrl?: string;
         emailVerified?: boolean;
+        needsTermsAcceptance?: boolean;
       };
     },
     @Res() res: Response,
   ) {
-    const response = await this.authService.loginUser(
-      req.user.id,
-      req.user.email,
-      req.user.username,
-      req.user.firstName,
-      req.user.lastName,
-      req.user.role,
-      req.user.avatarUrl,
+    try {
+      const { needsTermsAcceptance, ...userData } = req.user;
+      const tokens = await this.authService.loginUser(
+        userData.id,
+        userData.email,
+        userData.username,
+        userData.firstName,
+        userData.lastName,
+        userData.role,
+        userData.avatarUrl,
+      );
+
+      // If user hasn't accepted terms, redirect to terms page
+      if (needsTermsAcceptance) {
+        const queryParams = new URLSearchParams({
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          userId: tokens.id,
+          email: tokens.email,
+          username: tokens.username || '',
+          firstName: tokens.firstName || '',
+          lastName: tokens.lastName || '',
+          role: tokens.role,
+          avatar: tokens.avatar || '',
+          emailVerified: String(true),
+          needsTermsAcceptance: 'true',
+        });
+
+        return res.redirect(
+          `${this.configService.get('FRONTEND_URL')}/auth/accept-terms?${queryParams.toString()}`,
+        );
+      }
+
+      // If user has already accepted terms, redirect to callback as normal
+      const queryParams = new URLSearchParams({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        userId: tokens.id,
+        email: tokens.email,
+        username: tokens.username || '',
+        firstName: tokens.firstName || '',
+        lastName: tokens.lastName || '',
+        role: tokens.role,
+        avatar: tokens.avatar || '',
+        emailVerified: String(tokens.emailVerified),
+      });
+      return res.redirect(
+        `${this.configService.get('FRONTEND_URL')}/api/auth/google/callback?${queryParams.toString()}`,
+      );
+    } catch (error) {
+      console.error('Google OAuth callback error:', error);
+      return res.redirect(
+        `${this.configService.get('FRONTEND_URL')}/auth/signin?error=oauth_failed`,
+      );
+    }
+  }
+
+  @Public()
+  @Post('oauth/accept-terms')
+  async acceptOAuthTerms(@Body() acceptTermsDto: AcceptTermsDto) {
+    return this.authService.acceptOAuthTerms(
+      acceptTermsDto.userId,
+      acceptTermsDto.termsAccepted,
+      acceptTermsDto.newsletterOptIn,
     );
-    const queryParams = new URLSearchParams({
-      accessToken: response.accessToken,
-      refreshToken: response.refreshToken,
-      userId: response.id,
-      email: response.email ?? '',
-      username: response.username ?? '',
-      firstName: response.firstName ?? '',
-      lastName: response.lastName ?? '',
-      role: response.role ?? '',
-      avatar: response.avatar ?? '',
-      emailVerified: 'true',
-    }).toString();
-    const frontendUrl = process.env.FRONTEND_URL;
-    res.redirect(`${frontendUrl}/api/auth/google/callback?${queryParams}`);
   }
 
   @Post('signout')

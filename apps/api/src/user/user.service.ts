@@ -30,6 +30,8 @@ export class UserService {
         emailVerified = false, // Default to false if not provided
         termsAccepted,
         newsletterOptIn = false,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        recaptchaToken,
         ...user
       } = createUserDto;
 
@@ -126,6 +128,7 @@ export class UserService {
           emailVerified: true,
           verificationToken: true,
           verificationTokenExpiry: true,
+          termsAccepted: true,
         },
       });
     } catch (error) {
@@ -153,6 +156,7 @@ export class UserService {
           emailVerified: true,
           verificationToken: true,
           verificationTokenExpiry: true,
+          termsAccepted: true,
         },
       });
     } catch (error) {
@@ -183,6 +187,7 @@ export class UserService {
           emailVerified: true,
           verificationToken: true,
           verificationTokenExpiry: true,
+          termsAccepted: true,
         },
       });
     } catch (error) {
@@ -269,6 +274,29 @@ export class UserService {
     } catch (error) {
       this.logger.error('Error updating user profile', (error as Error).stack);
       throw new InternalServerErrorException('Error updating user profile');
+    }
+  }
+
+  async updateTermsAcceptance(
+    userId: string,
+    termsAccepted: boolean,
+    newsletterOptIn: boolean = false,
+  ): Promise<User> {
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          termsAccepted,
+          termsAcceptedAt: termsAccepted ? new Date() : null,
+          newsletterOptIn,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        'Error updating terms acceptance',
+        (error as Error).stack,
+      );
+      throw new InternalServerErrorException('Error updating terms acceptance');
     }
   }
 }

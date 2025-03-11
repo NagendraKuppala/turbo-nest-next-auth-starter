@@ -48,6 +48,17 @@ export function Navbar() {
   // Handle hydration mismatch by only rendering auth-dependent components after mount
   useEffect(() => {
     setMounted(true);
+    // Force a re-render when auth state changes
+    const unsubscribe = useAuthStore.subscribe(
+      (state) => state.isAuthenticated,
+      (isAuthenticated) => {
+        console.log("Auth state changed:", { isAuthenticated, user: useAuthStore.getState().user });
+      }
+    );
+    
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
