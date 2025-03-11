@@ -18,7 +18,8 @@ export class UserService {
     createUserDto: CreateUserDto & {
       verificationToken?: string;
       verificationTokenExpiry?: Date;
-      emailVerified?: boolean; // Add this to the type
+      emailVerified?: boolean;
+      termsAcceptedAt?: Date;
     },
   ): Promise<User> {
     try {
@@ -27,6 +28,8 @@ export class UserService {
         verificationToken,
         verificationTokenExpiry,
         emailVerified = false, // Default to false if not provided
+        termsAccepted,
+        newsletterOptIn = false,
         ...user
       } = createUserDto;
 
@@ -37,7 +40,10 @@ export class UserService {
           ...user,
           verificationToken,
           verificationTokenExpiry,
-          emailVerified, // Include in data
+          emailVerified,
+          termsAccepted,
+          termsAcceptedAt: termsAccepted ? new Date() : null, // Set to current date if accepted
+          newsletterOptIn,
         },
       });
     } catch (error) {

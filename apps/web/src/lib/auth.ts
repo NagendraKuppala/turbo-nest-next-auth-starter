@@ -62,6 +62,9 @@ export async function signUp(data: SignUpFormData): Promise<AuthResponse> {
         username: data.username || "",
         email: data.email,
         password: data.password,
+        termsAccepted: data.termsAccepted, // Add this field
+        newsletterOptIn: data.newsletterOptIn || false, // Add this field
+        recaptchaToken: data.recaptchaToken, // Add this field
       }),
     });
 

@@ -4,10 +4,18 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 import { signUp as signUpApi } from "@/lib/auth";
 import { AuthResponse, SignUpFormData, signUpSchema } from "@/lib/authTypes";
+import ReCAPTCHA from "react-google-recaptcha";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useRef, useEffect } from "react";
 
 interface SignUpFormProps {
   onSuccess: (data: AuthResponse) => void;
@@ -24,19 +32,38 @@ export function SignUpForm({
   setIsLoading,
   errorMessage,
 }: SignUpFormProps) {
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    setValue,
+    watch,
+    formState: { errors, isSubmitting, isValid },
   } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      termsAccepted: false,
+      newsletterOptIn: false,
+    },
+    mode: "onChange",
   });
 
   const onSubmit = async (data: SignUpFormData) => {
+    console.log("Form submitted with data:", data);
     setIsLoading(true);
     try {
-      console.log('Form data being submitted:', data);
-      const result = await signUpApi(data);
+      if (!recaptchaRef.current) {
+        throw new Error("reCAPTCHA not loaded");
+      }
+      const token = await recaptchaRef.current?.executeAsync();
+      if (!token) {
+        throw new Error("CAPTCHA verification failed");
+      }
+      const formData = {
+        ...data,
+        recaptchaToken: token,
+      };
+      const result = await signUpApi(formData);
       onSuccess(result);
     } catch (error) {
       onError(
@@ -44,10 +71,32 @@ export function SignUpForm({
           ? error
           : new Error("An unexpected error occurred")
       );
+      if (recaptchaRef.current) recaptchaRef.current?.reset();
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    console.log("reCAPTCHA loaded:", recaptchaRef.current);
+    console.log("Current form values:", watch());
+    console.log("Form is valid:", isValid);
+    console.log("Form errors:", errors);
+  }, [isValid, errors, watch]);
+
+  // Use direct registration for checkbox to ensure its value is properly tracked
+  const handleTermsAccepted = (checked: boolean | "indeterminate") => {
+    setValue("termsAccepted", checked === true, {
+      shouldValidate: true,
+    });
+  };
+
+  const handleNewsletterOptIn = (checked: boolean | "indeterminate") => {
+    setValue("newsletterOptIn", checked === true);
+  };
+
+  const termsAccepted = watch("termsAccepted");
+  const newsletterOptIn = watch("newsletterOptIn");
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -158,7 +207,57 @@ export function SignUpForm({
         <p className="text-sm text-red-500 text-center">{errorMessage}</p>
       )}
 
-      <Button type="submit" className="w-full" disabled={isLoading}>
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="termsAccepted"
+            checked={termsAccepted}
+            onCheckedChange={handleTermsAccepted}
+          />
+          <label htmlFor="termsAccepted" className="text-sm">
+            I accept the{" "}
+            <Link
+              href="/terms"
+              className="text-primary underline hover:text-primary/90"
+            >
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/privacy"
+              className="text-primary underline hover:text-primary/90"
+            >
+              Privacy Policy
+            </Link>
+          </label>
+        </div>
+        {errors.termsAccepted && (
+          <p className="text-sm text-red-500">{errors.termsAccepted.message}</p>
+        )}
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="newsletterOptIn"
+            checked={newsletterOptIn}
+            onCheckedChange={handleNewsletterOptIn}
+          />
+          <label htmlFor="newsletterOptIn" className="text-sm">
+            Send me updates about deals and promotions (optional)
+          </label>
+        </div>
+      </div>
+
+      <ReCAPTCHA
+        ref={recaptchaRef}
+        size="invisible"
+        sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || ""}
+      />
+
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isLoading || isSubmitting}
+      >
         {isLoading ? "Creating Account..." : "Create Account"}
       </Button>
 

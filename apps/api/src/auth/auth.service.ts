@@ -18,6 +18,7 @@ import { Role } from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
 import { nanoid } from 'nanoid';
 import { AuthJwtPayload } from './types/auth-jwtPayload';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +26,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
     @Inject(refreshConfig.KEY)
     private readonly refreshTokenConfig: ConfigType<typeof refreshConfig>,
   ) {}
@@ -43,15 +45,28 @@ export class AuthService {
     if (userUsernameExists)
       throw new ConflictException('Username already exists!');
 
+    // Verify reCAPTCHA token
+    await this.verifyRecaptcha(createUserDto.recaptchaToken!);
+
+    if (!createUserDto.termsAccepted) {
+      throw new BadRequestException(
+        'Terms and Privacy Policy must be accepted',
+      );
+    }
+
     // Generate verification token
     const verificationToken = nanoid(32);
     const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { recaptchaToken: _, ...userData } = createUserDto;
+
     // Create user with verification token
     const newUser = await this.userService.create({
-      ...createUserDto,
+      ...userData,
       verificationToken,
       verificationTokenExpiry,
+      termsAcceptedAt: new Date(),
     });
 
     try {
@@ -78,6 +93,35 @@ export class AuthService {
       emailVerified: newUser.emailVerified,
       message: 'Registration successful. Please verify your email.',
     };
+  }
+
+  // Verify reCAPTCHA token
+  private async verifyRecaptcha(token: string) {
+    const recaptchaSecret = this.configService.get<string>(
+      'RECAPTCHA_SECRET_KEY',
+    );
+    const verificationUrl = 'https://www.google.com/recaptcha/api/siteverify';
+
+    const response = await fetch(verificationUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${recaptchaSecret}&response=${token}`,
+    });
+
+    interface RecaptchaResponse {
+      success: boolean;
+      challenge_ts?: string;
+      hostname?: string;
+      score?: number;
+      action?: string;
+      'error-codes'?: string[];
+    }
+
+    const data = (await response.json()) as RecaptchaResponse;
+
+    if (!data.success) {
+      throw new BadRequestException('Invalid CAPTCHA');
+    }
   }
 
   // Validate user service - Local

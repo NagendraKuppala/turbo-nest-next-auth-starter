@@ -48,6 +48,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
         username: profile.displayName || profile.emails[0].value,
         avatarUrl: profile.photos[0].value,
         password: '',
+        termsAccepted: false, // Google OAuth users implicitly accept terms
+        newsletterOptIn: false, // Default to false for OAuth users
+        recaptchaToken: 'google-oauth', // Not needed for OAuth users
+        emailVerified: true, // Not needed for OAuth users: Mark as verified
       });
 
       if (!user) {
@@ -55,6 +59,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
           'Failed to authenticate with Google OAuth!',
         );
       }
+
+      const needsTermsAcceptance = !user.termsAccepted;
 
       done(null, {
         id: user.id,
@@ -64,7 +70,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
         lastName: user.lastName,
         role: user.role,
         avatarUrl: user.avatarUrl,
-        emailVerified: true, // Important: Mark as verified
+        emailVerified: true, // OAuth users are pre-verified
+        needsTermsAcceptance: needsTermsAcceptance, // Flag to indicate terms need acceptance
       });
     } catch (error) {
       if (error instanceof UnauthorizedException) {

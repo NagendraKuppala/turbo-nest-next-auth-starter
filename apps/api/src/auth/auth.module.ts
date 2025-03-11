@@ -22,6 +22,7 @@ import { EmailModule } from 'src/email/email.module';
     ConfigModule.forFeature(jwtConfig),
     ConfigModule.forFeature(refreshConfig),
     ConfigModule.forFeature(googleOauthConfig),
+    ConfigModule.forRoot(),
     EmailModule,
   ],
   controllers: [AuthController],

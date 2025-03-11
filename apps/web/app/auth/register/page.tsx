@@ -50,17 +50,6 @@ export default function RegisterPage() {
             />
           </CardContent>
         </Card>
-        <div className="text-center text-sm text-muted-foreground">
-          By signing up, you agree to our{" "}
-          <Link href="/terms" className="text-primary underline">
-            Terms of Service
-          </Link>{" "}
-          and{" "}
-          <Link href="/privacy" className="text-primary underline">
-            Privacy Policy
-          </Link>
-          .
-        </div>
       </div>
     </div>
   );

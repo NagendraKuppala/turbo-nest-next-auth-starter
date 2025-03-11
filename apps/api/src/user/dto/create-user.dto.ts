@@ -3,6 +3,7 @@ import {
   IsString,
   IsOptional,
   IsBoolean,
+  IsNotEmpty,
   MinLength,
   MaxLength,
   Matches,
@@ -51,4 +52,16 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   emailVerified?: boolean;
+
+  @IsNotEmpty()
+  @IsBoolean()
+  termsAccepted: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  newsletterOptIn: boolean;
+
+  @IsNotEmpty()
+  @IsString()
+  recaptchaToken?: string;
 }
