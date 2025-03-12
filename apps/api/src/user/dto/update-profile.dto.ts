@@ -3,6 +3,7 @@ import { CreateUserDto } from './create-user.dto';
 import {
   IsOptional,
   IsString,
+  IsBoolean,
   MaxLength,
   MinLength,
   Matches,
@@ -33,4 +34,8 @@ export class UpdateProfileDto extends PartialType(
     message: 'Username can only contain letters, numbers, and underscores',
   })
   username: string;
+
+  @IsBoolean()
+  @IsOptional()
+  newsletterOptIn?: boolean;
 }

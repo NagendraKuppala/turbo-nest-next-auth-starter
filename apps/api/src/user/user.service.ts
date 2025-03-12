@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -264,6 +265,7 @@ export class UserService {
       firstName: string;
       lastName?: string;
       username: string;
+      newsletterOptIn: boolean;
     }>,
   ) {
     try {
@@ -297,6 +299,37 @@ export class UserService {
         (error as Error).stack,
       );
       throw new InternalServerErrorException('Error updating terms acceptance');
+    }
+  }
+
+  async updateNewsletterPreference(
+    email: string,
+    preference: boolean,
+  ): Promise<void> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        throw new NotFoundException(`User with email ${email} not found`);
+      }
+
+      await this.prisma.user.update({
+        where: { email },
+        data: { newsletterOptIn: preference },
+      });
+    } catch (error) {
+      this.logger.error(
+        'Error updating newsletter preference',
+        error instanceof Error ? error.stack : String(error),
+      );
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Error updating newsletter preference',
+      );
     }
   }
 }

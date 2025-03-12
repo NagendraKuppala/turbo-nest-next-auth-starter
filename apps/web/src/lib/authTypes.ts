@@ -130,6 +130,7 @@ export const profileSchema = z.object({
   lastName: z.string().max(20).optional(),
   username: z.string().max(20).min(2, "Username must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
+  newsletterOptIn: z.boolean().optional(),
 });
 
 // Password change schema
@@ -160,6 +161,7 @@ export interface ProfileUpdateData {
   firstName: string;
   lastName?: string;
   username: string;
+  newsletterOptIn?: boolean;
 }
 
 export interface PasswordUpdateData {

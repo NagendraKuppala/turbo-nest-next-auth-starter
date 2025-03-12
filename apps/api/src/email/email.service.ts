@@ -5,6 +5,7 @@ import * as handlebars from 'handlebars';
 import * as fs from 'fs-extra';
 import type { Stats } from 'fs-extra';
 import * as path from 'path';
+import { JwtService } from '@nestjs/jwt';
 
 /**
  * Type-safe wrapper for fs-extra operations
@@ -16,10 +17,11 @@ class FileSystem {
    */
   static async pathExists(filePath: string): Promise<boolean> {
     try {
-      // fs-extra's pathExists returns a promise that resolves to a boolean
       return await fs.pathExists(filePath);
-    } catch {
-      // On any error, return false safely
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(`Error checking pathExists: ${error.message}`);
+      }
       return false;
     }
   }
@@ -29,12 +31,12 @@ class FileSystem {
    */
   static async readdir(dirPath: string): Promise<string[]> {
     try {
-      // Use fs-extra's readdir and explicitly cast to string[]
       const result = await fs.readdir(dirPath);
-      // Filter to ensure only strings
       return result.filter((item): item is string => typeof item === 'string');
-    } catch {
-      // On any error, return empty array
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(`Error reading directory: ${error.message}`);
+      }
       return [];
     }
   }
@@ -47,7 +49,6 @@ class FileSystem {
     options: { encoding: BufferEncoding },
   ): Promise<string> {
     try {
-      // Explicitly cast the result to string
       const content = await fs.readFile(filePath, options);
       return String(content);
     } catch (error: unknown) {
@@ -86,6 +87,11 @@ interface EmailTemplateData {
   [key: string]: unknown;
 }
 
+interface UnsubscribeContext extends EmailTemplateData {
+  unsubscribeLink: string;
+  currentYear: number;
+}
+
 interface DealDetails {
   id: string;
   title: string;
@@ -109,10 +115,12 @@ export class EmailService implements OnModuleInit {
   private readonly ses: SESClient;
   private readonly logger = new Logger(EmailService.name);
   private readonly sender: string;
-  private readonly templates: Map<string, handlebars.TemplateDelegate> =
-    new Map();
+  private readonly templates = new Map<string, HandlebarsTemplateDelegate>();
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
+  ) {
     this.ses = new SESClient({
       region: this.configService.getOrThrow('AWS_REGION'),
       credentials: {
@@ -129,29 +137,17 @@ export class EmailService implements OnModuleInit {
 
   private async loadTemplates(): Promise<void> {
     try {
-      // In production, templates will be in the dist directory
       const templatesDir = path.join(__dirname, '..', 'templates', 'emails');
-
-      // Register handlebars helpers
-      handlebars.registerHelper('formatDate', (date: Date) => {
-        return date ? new Date(date).toLocaleDateString() : '';
-      });
-
-      // Register partials
+      handlebars.registerHelper('formatDate', (date: Date) =>
+        date ? new Date(date).toLocaleDateString() : '',
+      );
       await this.registerPartials(templatesDir);
-
-      // Load all template files
       await this.loadTemplateFiles(templatesDir);
-
       this.logger.log('Email templates loaded successfully');
-    } catch (error) {
-      this.logger.error(
-        'Error loading email templates',
-        error instanceof Error ? error.message : String(error),
-      );
-      throw new Error(
-        'Failed to load email templates. Please ensure all template files exist in the templates directory.',
-      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Error loading email templates: ${message}`);
+      throw new Error(`Failed to load email templates: ${message}`);
     }
   }
 
@@ -248,6 +244,18 @@ export class EmailService implements OnModuleInit {
     return template(templateContext);
   }
 
+  private generateUnsubscribeToken(email: string): string {
+    const payload = {
+      email,
+      purpose: 'newsletter-unsubscribe',
+    };
+
+    return this.jwtService.sign(payload, {
+      expiresIn: '1y',
+      secret: this.configService.get('JWT_SECRET'),
+    });
+  }
+
   private async sendEmail(
     to: string,
     subject: string,
@@ -255,8 +263,29 @@ export class EmailService implements OnModuleInit {
     context: EmailTemplateData,
   ): Promise<void> {
     try {
-      const htmlContent = this.getRenderedTemplate(templateName, context);
+      let unsubscribeLink = '';
 
+      try {
+        const unsubscribeToken = this.generateUnsubscribeToken(to);
+        unsubscribeLink = `${this.configService.get<string>('BACKEND_URL')}/auth/unsubscribed?token=${unsubscribeToken}`;
+      } catch (error) {
+        this.logger.warn(
+          `Could not generate unsubscribe link: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        // Continue without unsubscribe link if there's an error
+        unsubscribeLink = '#';
+      }
+
+      const enrichedContext: UnsubscribeContext = {
+        ...context,
+        currentYear: new Date().getFullYear(),
+        unsubscribeLink,
+      };
+
+      const htmlContent = this.getRenderedTemplate(
+        templateName,
+        enrichedContext,
+      );
       // Generate a simpler plain text version
       const textContent = htmlContent
         .replace(/<[^>]*>/g, '')

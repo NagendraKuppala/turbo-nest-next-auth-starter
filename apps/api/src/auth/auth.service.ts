@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Inject,
+  forwardRef,
   Injectable,
   UnauthorizedException,
   BadRequestException,
@@ -17,7 +18,10 @@ import { ConfigType } from '@nestjs/config';
 import { Role } from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
 import { nanoid } from 'nanoid';
-import { AuthJwtPayload } from './types/auth-jwtPayload';
+import {
+  AuthJwtPayload,
+  NewsletterUnsubscribePayload,
+} from './types/auth-jwtPayload';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -25,6 +29,7 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    @Inject(forwardRef(() => EmailService))
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     @Inject(refreshConfig.KEY)
@@ -435,6 +440,7 @@ export class AuthService {
         firstName: updateProfileDto.firstName,
         lastName: updateProfileDto.lastName,
         username: updateProfileDto.username,
+        newsletterOptIn: updateProfileDto.newsletterOptIn,
       });
 
       return {
@@ -446,6 +452,7 @@ export class AuthService {
         role: updatedUser.role,
         avatar: updatedUser.avatarUrl,
         emailVerified: updatedUser.emailVerified,
+        newsletterOptIn: updatedUser.newsletterOptIn,
       };
     } catch (error) {
       if (error instanceof ConflictException) {
@@ -530,6 +537,29 @@ export class AuthService {
       throw new InternalServerErrorException(
         'Error recording terms acceptance',
       );
+    }
+  }
+
+  // Unsubscribe from newsletter
+  async unsubscribeFromNewsletter(token: string): Promise<void> {
+    try {
+      const payload = this.jwtService.verify<NewsletterUnsubscribePayload>(
+        token,
+        {
+          secret: this.configService.get<string>('JWT_SECRET'),
+        },
+      );
+
+      if (!payload || payload.purpose !== 'newsletter-unsubscribe') {
+        throw new Error('Invalid unsubscribe token');
+      }
+
+      await this.userService.updateNewsletterPreference(payload.email, false);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Invalid or expired unsubscribe link');
     }
   }
 

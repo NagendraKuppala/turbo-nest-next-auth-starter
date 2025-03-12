@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UserService } from 'src/user/user.service';
@@ -23,7 +23,7 @@ import { EmailModule } from 'src/email/email.module';
     ConfigModule.forFeature(refreshConfig),
     ConfigModule.forFeature(googleOauthConfig),
     ConfigModule.forRoot(),
-    EmailModule,
+    forwardRef(() => EmailModule),
   ],
   controllers: [AuthController],
   providers: [
@@ -43,5 +43,6 @@ import { EmailModule } from 'src/email/email.module';
       useClass: RolesGuard,
     },
   ],
+  exports: [AuthService],
 })
 export class AuthModule {}

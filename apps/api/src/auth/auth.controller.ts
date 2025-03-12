@@ -236,6 +236,28 @@ export class AuthController {
     );
   }
 
+  @Public()
+  @Get('unsubscribed')
+  async unsubscribeNewsletter(
+    @Query('token') token: string,
+    @Res() res: Response,
+  ) {
+    try {
+      await this.authService.unsubscribeFromNewsletter(token);
+      return res.redirect(
+        `${this.configService.get('FRONTEND_URL')}/auth/unsubscribed?success=true`,
+      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Invalid unsubscribe link';
+      return res.redirect(
+        `${this.configService.get('FRONTEND_URL')}/auth/unsubscribed?success=false&error=${encodeURIComponent(
+          errorMessage,
+        )}`,
+      );
+    }
+  }
+
   @Roles('ADMIN')
   @Get('admin/dashboard')
   adminRoute(@Request() req: { user: { id: string; email?: string } }) {
