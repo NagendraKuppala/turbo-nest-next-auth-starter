@@ -64,6 +64,7 @@ export default function TermsAcceptancePage() {
           role: userData.role,
           avatar: userData.avatar,
           emailVerified: userData.emailVerified,
+          newsletterOptIn: newsletterOptIn,
         },
         accessToken: userData.accessToken,
         refreshToken: userData.refreshToken,
@@ -81,6 +82,7 @@ export default function TermsAcceptancePage() {
           role: userData.role,
           avatar: userData.avatar || "",
           emailVerified: userData.emailVerified,
+          newsletterOptIn: newsletterOptIn,
         },
         isLoading: false,
       });

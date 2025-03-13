@@ -35,7 +35,7 @@ export function ProfileForm({ onError, onSuccess }: ProfileFormProps) {
       lastName: user?.lastName || "",
       username: user?.username || "",
       email: user?.email || "",
-      newsletterOptIn: user?.newsletterOptIn || false,
+      newsletterOptIn: Boolean(user?.newsletterOptIn),
     },
     mode: "onChange",
   });

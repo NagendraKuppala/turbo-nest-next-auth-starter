@@ -155,6 +155,7 @@ export class AuthController {
           role: tokens.role,
           avatar: tokens.avatar || '',
           emailVerified: String(true),
+          newsletterOptIn: String(tokens.newsletterOptIn),
           needsTermsAcceptance: 'true',
         });
 
@@ -175,6 +176,7 @@ export class AuthController {
         role: tokens.role,
         avatar: tokens.avatar || '',
         emailVerified: String(tokens.emailVerified),
+        newsletterOptIn: String(tokens.newsletterOptIn),
       });
       return res.redirect(
         `${this.configService.get('FRONTEND_URL')}/api/auth/google/callback?${queryParams.toString()}`,

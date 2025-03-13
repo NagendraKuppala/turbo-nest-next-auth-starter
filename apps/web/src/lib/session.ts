@@ -1,19 +1,12 @@
 "use server";
 
+import { User } from "@/store/authStore";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
+
 export type Session = {
-  user: {
-    id: string;
-    email: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    role: "USER" | "ADMIN";
-    avatar: string;
-    emailVerified: boolean;
-  };
+  user: User;
   accessToken: string;
   refreshToken: string;
 };

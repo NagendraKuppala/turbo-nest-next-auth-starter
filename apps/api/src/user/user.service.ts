@@ -130,6 +130,7 @@ export class UserService {
           verificationToken: true,
           verificationTokenExpiry: true,
           termsAccepted: true,
+          newsletterOptIn: true,
         },
       });
     } catch (error) {
@@ -158,6 +159,7 @@ export class UserService {
           verificationToken: true,
           verificationTokenExpiry: true,
           termsAccepted: true,
+          newsletterOptIn: true,
         },
       });
     } catch (error) {
@@ -189,6 +191,7 @@ export class UserService {
           verificationToken: true,
           verificationTokenExpiry: true,
           termsAccepted: true,
+          newsletterOptIn: true,
         },
       });
     } catch (error) {

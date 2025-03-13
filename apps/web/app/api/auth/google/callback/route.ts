@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     const role = searchParams.get('role');
     const avatar = searchParams.get('avatar')
     const emailVerified = searchParams.get('emailVerified');
+    const newsletterOptIn = searchParams.get('newsletterOptIn');
 
     if(!accessToken || !refreshToken || !userId || !email || !username || !role)
         throw new Error('Google OAuth Failed!');        
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
             role: role as "USER" | "ADMIN",
             avatar: avatar || '',
             emailVerified: emailVerified === 'true',
+            newsletterOptIn: newsletterOptIn === 'true',
         },
         accessToken,
         refreshToken,

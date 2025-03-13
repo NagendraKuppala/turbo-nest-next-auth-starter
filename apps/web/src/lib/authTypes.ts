@@ -76,6 +76,8 @@ export interface AuthResponse {
   role: UserRole;
   avatar?: string;
   emailVerified: boolean;
+  newsletterOptIn: boolean;
+  termsAccepted: boolean;
   accessToken: string;
   refreshToken: string;
   message?: string;

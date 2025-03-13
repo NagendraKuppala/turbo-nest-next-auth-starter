@@ -13,6 +13,7 @@ export interface User {
   role: UserRole;
   avatar?: string | null;
   emailVerified: boolean;
+  newsletterOptIn: boolean;
 }
 
 type AuthState = {
@@ -20,7 +21,7 @@ type AuthState = {
   isLoading: boolean;
   isAuthenticated: boolean;
   initialize: () => Promise<void>;
-  login: (credentials: SignInFormData) => Promise<AuthResponse>;
+  login: (credentials: SignInFormData | AuthResponse) => Promise<AuthResponse>;
   logout: () => Promise<void>;
   updateUser: (user: Partial<User>) => Promise<void>;
 };
@@ -56,7 +57,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  login: async (data) => {
+  login: async (data: SignInFormData | AuthResponse) => {
     set({ isLoading: true });
     try {
       // Handle both direct login with credentials and passing AuthResponse
@@ -83,6 +84,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             role: result.role,
             avatar: result.avatar || "",
             emailVerified: result.emailVerified,
+            newsletterOptIn: result.newsletterOptIn,
           },
           accessToken: result.accessToken,
           refreshToken: result.refreshToken,
@@ -100,6 +102,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             role: result.role,
             avatar: result.avatar,
             emailVerified: result.emailVerified,
+            newsletterOptIn: result.newsletterOptIn,
           },
           isLoading: false,
         });

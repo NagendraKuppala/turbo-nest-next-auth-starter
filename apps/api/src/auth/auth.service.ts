@@ -245,6 +245,7 @@ export class AuthService {
       role: role || user.role,
       avatar: avatarUrl || user.avatarUrl,
       emailVerified: user.emailVerified,
+      newsletterOptIn: user.newsletterOptIn,
       accessToken,
       refreshToken,
     };

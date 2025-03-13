@@ -15,6 +15,8 @@ interface UserWithTermsAccepted {
   role: string;
   avatarUrl: string | null;
   termsAccepted: boolean;
+  emailVerified: boolean;
+  newsletterOptIn: boolean;
 }
 
 interface UserResult {
@@ -134,6 +136,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
         role: userData.role,
         avatarUrl: userData.avatarUrl,
         emailVerified: true, // OAuth users are pre-verified
+        newsletterOptIn: userData.newsletterOptIn,
         needsTermsAcceptance, // Flag to indicate if terms need acceptance
         isNewUser,
       });

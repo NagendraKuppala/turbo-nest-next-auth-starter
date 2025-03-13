@@ -37,6 +37,7 @@ export default function SignInPage() {
           role: result.role,
           avatar: result.avatar || "",
           emailVerified: result.emailVerified,
+          newsletterOptIn: result.newsletterOptIn,          
         },
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
@@ -53,6 +54,7 @@ export default function SignInPage() {
           role: result.role,
           avatar: result.avatar || "",
           emailVerified: result.emailVerified,
+          newsletterOptIn: result.newsletterOptIn,
         },
         isLoading: false,
       });
