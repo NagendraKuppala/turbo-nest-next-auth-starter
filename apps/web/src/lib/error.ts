@@ -9,8 +9,8 @@ export class ApiError extends Error {
     this.data = data;
   }
 
-  static fromResponse(response: Response, data?: unknown): ApiError {
-    const message = data?.message || response.statusText || 'API Error';
+  static fromResponse(response: Response, data?: { message?: string } | unknown): ApiError {
+    const message = (data as { message?: string })?.message || response.statusText || 'API Error';
     return new ApiError(message, response.status, data);
   }
 

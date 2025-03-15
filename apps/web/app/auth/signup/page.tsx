@@ -18,7 +18,6 @@ export default function RegisterPage() {
   }, []);
 
   const handleSuccess = async (result: AuthResponse) => {
-    console.log("User registered:", result);
     router.push(`/auth/verification-pending?email=${encodeURIComponent(result.email)}`);
   };
   const handleError = (error: Error) => {

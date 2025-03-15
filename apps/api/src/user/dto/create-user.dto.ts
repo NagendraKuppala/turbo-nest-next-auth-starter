@@ -30,7 +30,7 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
-  avatarUrl: string;
+  avatar: string;
 
   @IsEmail()
   email: string;

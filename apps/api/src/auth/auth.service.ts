@@ -1,28 +1,31 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
-  forwardRef,
   Injectable,
-  UnauthorizedException,
-  BadRequestException,
   InternalServerErrorException,
   NotFoundException,
+  UnauthorizedException,
+  forwardRef,
 } from '@nestjs/common';
+import { ConfigService, ConfigType } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { UpdateProfileDto } from '../user/dto/update-profile.dto';
+
 import { UserService } from 'src/user/user.service';
-import { hash, verify } from 'argon2';
-import { JwtService } from '@nestjs/jwt';
-import refreshConfig from './config/refresh.config';
-import { ConfigType } from '@nestjs/config';
-import { Role } from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
+
+import { hash, verify } from 'argon2';
 import { nanoid } from 'nanoid';
+import refreshConfig from './config/refresh.config';
+
 import {
   AuthJwtPayload,
   NewsletterUnsubscribePayload,
 } from './types/auth-jwtPayload';
-import { ConfigService } from '@nestjs/config';
+import { AuthUserType, AuthUserResponse } from './types/auth-user';
 
 @Injectable()
 export class AuthService {
@@ -36,19 +39,89 @@ export class AuthService {
     private readonly refreshTokenConfig: ConfigType<typeof refreshConfig>,
   ) {}
 
-  // SignUp user service
-  async registerUser(createUserDto: CreateUserDto) {
-    const userEmailExists = await this.userService.findByEmail(
-      createUserDto.email,
-    );
-    if (userEmailExists)
-      throw new ConflictException('User email already exists!');
+  // HELPERs
 
-    const userUsernameExists = await this.userService.findByUsername(
+  /**
+   * Check if email or username already exists
+   */
+  private async validateUniqueUserFields(
+    email: string,
+    username: string,
+  ): Promise<void> {
+    const userEmailExists = await this.userService.findByEmail(email);
+    if (userEmailExists) {
+      throw new ConflictException('User email already exists!');
+    }
+
+    const userUsernameExists = await this.userService.findByUsername(username);
+    if (userUsernameExists) {
+      throw new ConflictException('Username already exists!');
+    }
+  }
+
+  /**
+   * Generate verification token with expiry
+   */
+  private generateVerificationToken(expiryHours = 24): {
+    token: string;
+    expiry: Date;
+  } {
+    return {
+      token: nanoid(32),
+      expiry: new Date(Date.now() + expiryHours * 60 * 60 * 1000),
+    };
+  }
+
+  /**
+   * Generate password reset token with expiry
+   */
+  private generatePasswordResetToken(expiryHours = 1): {
+    token: string;
+    expiry: Date;
+  } {
+    return {
+      token: nanoid(32),
+      expiry: new Date(Date.now() + expiryHours * 60 * 60 * 1000),
+    };
+  }
+
+  /**
+   * Map user entity to user response DTO
+   */
+  private mapUserToResponse(
+    user: AuthUserType,
+    includeTokens = false,
+    tokens?: { accessToken?: string; refreshToken?: string },
+  ): AuthUserResponse {
+    const response = {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      avatar: user.avatar,
+      emailVerified: user.emailVerified,
+      newsletterOptIn: user.newsletterOptIn,
+    };
+
+    if (includeTokens && tokens) {
+      return { ...response, ...tokens };
+    }
+
+    return response;
+  }
+
+  // ====================================================
+  // AUTHENTICATION METHODS
+  // ====================================================
+
+  async registerUser(createUserDto: CreateUserDto) {
+    // Use the helper method to validate unique user fields
+    await this.validateUniqueUserFields(
+      createUserDto.email,
       createUserDto.username,
     );
-    if (userUsernameExists)
-      throw new ConflictException('Username already exists!');
 
     // Verify reCAPTCHA token
     await this.verifyRecaptcha(createUserDto.recaptchaToken!);
@@ -59,9 +132,9 @@ export class AuthService {
       );
     }
 
-    // Generate verification token
-    const verificationToken = nanoid(32);
-    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // Generate verification token using helper
+    const { token: verificationToken, expiry: verificationTokenExpiry } =
+      this.generateVerificationToken(24);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { recaptchaToken: _, ...userData } = createUserDto;
@@ -86,47 +159,37 @@ export class AuthService {
       console.error('Failed to send verification email:', error);
     }
 
-    // Return user data without tokens
-    return {
-      id: newUser.id,
-      email: newUser.email,
-      username: newUser.username,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
-      role: newUser.role,
-      avatar: newUser.avatarUrl,
-      emailVerified: newUser.emailVerified,
-      message: 'Registration successful. Please verify your email.',
-    };
+    // Return user data using helper
+    return this.mapUserToResponse(newUser, false, {});
   }
 
-  // Verify reCAPTCHA token
-  private async verifyRecaptcha(token: string) {
-    const recaptchaSecret = this.configService.get<string>(
-      'RECAPTCHA_SECRET_KEY',
+  // Login user service
+  async loginUser(authUser: AuthUserType): Promise<AuthUserResponse> {
+    const { id } = authUser;
+    const user = await this.userService.findByUserId(id);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedException(
+        'Email not verified. Please check your inbox for the verification email.',
+      );
+    }
+
+    const { accessToken, refreshToken } = await this.generateJwtToken(id);
+    const hashedRefreshToken = await hash(refreshToken);
+    await this.userService.updateHashedRefreshToken(id, hashedRefreshToken);
+
+    return this.mapUserToResponse(
+      {
+        ...authUser,
+        emailVerified: user.emailVerified,
+        newsletterOptIn: user.newsletterOptIn,
+      },
+      true,
+      { accessToken, refreshToken },
     );
-    const verificationUrl = 'https://www.google.com/recaptcha/api/siteverify';
-
-    const response = await fetch(verificationUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${recaptchaSecret}&response=${token}`,
-    });
-
-    interface RecaptchaResponse {
-      success: boolean;
-      challenge_ts?: string;
-      hostname?: string;
-      score?: number;
-      action?: string;
-      'error-codes'?: string[];
-    }
-
-    const data = (await response.json()) as RecaptchaResponse;
-
-    if (!data.success) {
-      throw new BadRequestException('Invalid CAPTCHA');
-    }
   }
 
   // Validate user service - Local
@@ -145,110 +208,15 @@ export class AuthService {
     if (!isPasswordValid)
       throw new UnauthorizedException('Invalid Credentials!');
 
-    return {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      avatar: user.avatarUrl,
-    };
+    return this.mapUserToResponse(user);
   }
 
-  // Verify email
-  async verifyEmail(token: string) {
-    if (!token) {
-      throw new BadRequestException('Verification token is required');
-    }
-
-    const user = await this.userService.findByVerificationToken(token);
-    if (!user) {
-      throw new BadRequestException('Invalid verification token');
-    }
-
-    if (
-      !user.verificationTokenExpiry ||
-      user.verificationTokenExpiry < new Date()
-    ) {
-      throw new BadRequestException('Verification token has expired');
-    }
-
-    if (user.emailVerified) {
-      return { message: 'Email already verified' };
-    }
-
-    await this.userService.markEmailAsVerified(user.id);
-    return { message: 'Email verified successfully' };
-  }
-
-  // Resend verification email
-  async resendVerificationEmail(email: string) {
-    const user = await this.userService.findByEmail(email);
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    if (user.emailVerified) {
-      throw new BadRequestException('Email already verified');
-    }
-
-    // Generate new verification token
-    const verificationToken = nanoid(32);
-    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-    await this.userService.updateVerificationToken(
-      user.id,
-      verificationToken,
-      verificationTokenExpiry,
-    );
-
-    await this.emailService.sendVerificationEmail(
-      user.email,
-      verificationToken,
-      user.username ?? '',
-    );
-
-    return { message: 'Verification email sent successfully' };
-  }
-
-  // Login user service
-  async loginUser(
-    userId: string,
-    email?: string,
-    username?: string,
-    firstName?: string,
-    lastName?: string,
-    role?: Role,
-    avatarUrl?: string,
-  ) {
+  // Validate user service - JWT
+  async validateJwtUser(userId: string) {
     const user = await this.userService.findByUserId(userId);
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
+    if (!user) throw new UnauthorizedException('User not found!');
 
-    if (!user.emailVerified) {
-      throw new UnauthorizedException(
-        'Email not verified. Please check your inbox for the verification email.',
-      );
-    }
-
-    const { accessToken, refreshToken } = await this.generateJwtToken(userId);
-    const hashedRefreshToken = await hash(refreshToken);
-    await this.userService.updateHashedRefreshToken(userId, hashedRefreshToken);
-    return {
-      id: userId,
-      email: email || user.email,
-      username: username || user.username,
-      firstName: firstName || user.firstName,
-      lastName: lastName || user.lastName,
-      role: role || user.role,
-      avatar: avatarUrl || user.avatarUrl,
-      emailVerified: user.emailVerified,
-      newsletterOptIn: user.newsletterOptIn,
-      accessToken,
-      refreshToken,
-    };
+    return this.mapUserToResponse(user);
   }
 
   // Generate JWT token service
@@ -261,21 +229,6 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  // Validate user service - JWT
-  async validateJwtUser(userId: string) {
-    const user = await this.userService.findByUserId(userId);
-    if (!user) throw new UnauthorizedException('User not found!');
-    return {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      avatar: user.avatarUrl,
-    };
-  }
-
   // Validate refresh token service
   async validateRefreshToken(userId: string, refreshToken: string) {
     const user = await this.userService.findByUserId(userId);
@@ -285,42 +238,26 @@ export class AuthService {
     const isRefreshTokenValid = await verify(user.refreshToken, refreshToken);
     if (!isRefreshTokenValid)
       throw new UnauthorizedException('Invalid Refresh Token!');
-    return {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      avatar: user.avatarUrl,
-    };
+
+    return this.mapUserToResponse(user);
   }
 
   // Refresh token service
-  async refreshToken(
-    userId: string,
-    email?: string,
-    username?: string,
-    firstName?: string,
-    lastName?: string,
-    role?: Role,
-    avatarUrl?: string,
-  ) {
-    const { accessToken, refreshToken } = await this.generateJwtToken(userId);
+  async refreshToken(authUser: AuthUserType) {
+    const { id } = authUser;
+    const { accessToken, refreshToken } = await this.generateJwtToken(id);
     const hashedRefreshToken = await hash(refreshToken);
-    await this.userService.updateHashedRefreshToken(userId, hashedRefreshToken);
-    return {
-      id: userId,
-      email: email,
-      username: username,
-      firstName: firstName,
-      lastName: lastName,
-      role: role,
-      avatar: avatarUrl,
+    await this.userService.updateHashedRefreshToken(id, hashedRefreshToken);
+
+    return this.mapUserToResponse(authUser, true, {
       accessToken,
       refreshToken,
-    };
+    });
   }
+
+  // ====================================================
+  // OAUTH METHODS
+  // ====================================================
 
   // Google OAuth service
   async validateGoogleOAuthUser(googleUser: CreateUserDto) {
@@ -365,6 +302,110 @@ export class AuthService {
     }
   }
 
+  async acceptOAuthTerms(
+    userId: string,
+    termsAccepted: boolean,
+    newsletterOptIn: boolean = false,
+  ) {
+    if (!termsAccepted) {
+      throw new BadRequestException(
+        'Terms and Privacy Policy must be accepted',
+      );
+    }
+
+    try {
+      const user = await this.userService.findByUserId(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      await this.userService.updateTermsAcceptance(
+        userId,
+        termsAccepted,
+        newsletterOptIn,
+      );
+
+      return {
+        message: 'Terms acceptance recorded successfully',
+        success: true,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Error recording terms acceptance',
+      );
+    }
+  }
+
+  // ====================================================
+  // EMAIL VERIFICATION METHODS
+  // ====================================================
+
+  // Verify email
+  async verifyEmail(token: string) {
+    if (!token) {
+      throw new BadRequestException('Verification token is required');
+    }
+
+    const user = await this.userService.findByVerificationToken(token);
+    if (!user) {
+      throw new BadRequestException('Invalid verification token');
+    }
+
+    if (
+      !user.verificationTokenExpiry ||
+      user.verificationTokenExpiry < new Date()
+    ) {
+      throw new BadRequestException('Verification token has expired');
+    }
+
+    if (user.emailVerified) {
+      return { message: 'Email already verified' };
+    }
+
+    await this.userService.markEmailAsVerified(user.id);
+    return { message: 'Email verified successfully' };
+  }
+
+  // Resend verification email
+  async resendVerificationEmail(email: string) {
+    const user = await this.userService.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (user.emailVerified) {
+      throw new BadRequestException('Email already verified');
+    }
+
+    // Generate new verification token using helper
+    const { token: verificationToken, expiry: verificationTokenExpiry } =
+      this.generateVerificationToken(24);
+
+    await this.userService.updateVerificationToken(
+      user.id,
+      verificationToken,
+      verificationTokenExpiry,
+    );
+
+    await this.emailService.sendVerificationEmail(
+      user.email,
+      verificationToken,
+      user.username ?? '',
+    );
+
+    return { message: 'Verification email sent successfully' };
+  }
+
+  // ====================================================
+  // PASSWORD MANAGEMENT METHODS
+  // ====================================================
+
   // Forgot password
   async forgotPassword(email: string) {
     const user = await this.userService.findByEmail(email);
@@ -376,9 +417,9 @@ export class AuthService {
       };
     }
 
-    // Generate reset token
-    const pwdResetToken = nanoid(32);
-    const pwdResetTokenExpiry = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour
+    // Generate reset token using helper
+    const { token: pwdResetToken, expiry: pwdResetTokenExpiry } =
+      this.generatePasswordResetToken(1);
 
     await this.userService.updatePasswordResetToken(
       user.id,
@@ -422,46 +463,9 @@ export class AuthService {
     return { message: 'Password has been reset successfully' };
   }
 
-  // Update user profile
-  async updateUserProfile(userId: string, updateProfileDto: UpdateProfileDto) {
-    try {
-      // Check if username already exists for another user
-      if (updateProfileDto.username) {
-        const existingUser = await this.userService.findByUsername(
-          updateProfileDto.username,
-        );
-
-        if (existingUser && existingUser.id !== userId) {
-          throw new ConflictException('Username is already taken');
-        }
-      }
-
-      // Update the user profile
-      const updatedUser = await this.userService.updateProfile(userId, {
-        firstName: updateProfileDto.firstName,
-        lastName: updateProfileDto.lastName,
-        username: updateProfileDto.username,
-        newsletterOptIn: updateProfileDto.newsletterOptIn,
-      });
-
-      return {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        username: updatedUser.username,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        role: updatedUser.role,
-        avatar: updatedUser.avatarUrl,
-        emailVerified: updatedUser.emailVerified,
-        newsletterOptIn: updatedUser.newsletterOptIn,
-      };
-    } catch (error) {
-      if (error instanceof ConflictException) {
-        throw error;
-      }
-      throw new InternalServerErrorException('Error updating user profile');
-    }
-  }
+  // ====================================================
+  // PROFILE MANAGEMENT METHODS
+  // ====================================================
 
   // Change user password
   async changeUserPassword(
@@ -501,43 +505,67 @@ export class AuthService {
     }
   }
 
-  async acceptOAuthTerms(
-    userId: string,
-    termsAccepted: boolean,
-    newsletterOptIn: boolean = false,
-  ) {
-    if (!termsAccepted) {
-      throw new BadRequestException(
-        'Terms and Privacy Policy must be accepted',
-      );
-    }
-
+  // Update user profile
+  async updateUserProfile(userId: string, updateProfileDto: UpdateProfileDto) {
     try {
-      const user = await this.userService.findByUserId(userId);
-      if (!user) {
-        throw new NotFoundException('User not found');
+      // Check if username already exists for another user
+      if (updateProfileDto.username) {
+        const existingUser = await this.userService.findByUsername(
+          updateProfileDto.username,
+        );
+
+        if (existingUser && existingUser.id !== userId) {
+          throw new ConflictException('Username is already taken');
+        }
       }
 
-      await this.userService.updateTermsAcceptance(
-        userId,
-        termsAccepted,
-        newsletterOptIn,
-      );
+      // Update the user profile
+      const updatedUser = await this.userService.updateProfile(userId, {
+        firstName: updateProfileDto.firstName,
+        lastName: updateProfileDto.lastName,
+        username: updateProfileDto.username,
+        newsletterOptIn: updateProfileDto.newsletterOptIn,
+      });
 
-      return {
-        message: 'Terms acceptance recorded successfully',
-        success: true,
-      };
+      return this.mapUserToResponse(updatedUser);
     } catch (error) {
-      if (
-        error instanceof BadRequestException ||
-        error instanceof NotFoundException
-      ) {
+      if (error instanceof ConflictException) {
         throw error;
       }
-      throw new InternalServerErrorException(
-        'Error recording terms acceptance',
-      );
+      throw new InternalServerErrorException('Error updating user profile');
+    }
+  }
+
+  // ====================================================
+  // UTILITIES
+  // ====================================================
+
+  // Verify reCAPTCHA token
+  private async verifyRecaptcha(token: string) {
+    const recaptchaSecret = this.configService.get<string>(
+      'RECAPTCHA_SECRET_KEY',
+    );
+    const verificationUrl = 'https://www.google.com/recaptcha/api/siteverify';
+
+    const response = await fetch(verificationUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${recaptchaSecret}&response=${token}`,
+    });
+
+    interface RecaptchaResponse {
+      success: boolean;
+      challenge_ts?: string;
+      hostname?: string;
+      score?: number;
+      action?: string;
+      'error-codes'?: string[];
+    }
+
+    const data = (await response.json()) as RecaptchaResponse;
+
+    if (!data.success) {
+      throw new BadRequestException('Invalid CAPTCHA');
     }
   }
 

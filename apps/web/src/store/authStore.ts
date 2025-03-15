@@ -37,7 +37,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       const session = await getSession();
       // Only update auth state if we have a valid session
       if (session?.user && session?.accessToken) {
-        console.log("Session user data:", session.user);
         set({
           isAuthenticated: true,
           user: session.user,

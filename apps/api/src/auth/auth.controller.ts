@@ -20,9 +20,12 @@ import { GoogleAuthGuard } from './guards/google-auth/google-auth.guard';
 import { Response } from 'express';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
-import { Role } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
+import { AuthUserType } from './types/auth-user.d';
 
+interface AuthRequest {
+  user: AuthUserType;
+}
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -31,7 +34,7 @@ export class AuthController {
   ) {}
 
   @Public()
-  @Post('register')
+  @Post('signup')
   registerUser(@Body() createUserDto: CreateUserDto) {
     return this.authService.registerUser(createUserDto);
   }
@@ -52,57 +55,15 @@ export class AuthController {
   @Public()
   @UseGuards(LocalAuthGuard)
   @Post('signin')
-  loginUser(
-    @Request()
-    req: {
-      user: {
-        id: string;
-        email?: string;
-        username?: string;
-        firstName?: string;
-        lastName?: string;
-        role?: Role;
-        avatarUrl?: string;
-      };
-    },
-  ) {
-    return this.authService.loginUser(
-      req.user.id,
-      req.user.email,
-      req.user.username,
-      req.user.firstName,
-      req.user.lastName,
-      req.user.role,
-      req.user.avatarUrl,
-    );
+  loginUser(@Request() req: AuthRequest) {
+    return this.authService.loginUser(req.user);
   }
 
   @Public()
   @UseGuards(RefreshAuthGuard)
   @Post('refresh')
-  refreshToken(
-    @Request()
-    req: {
-      user: {
-        id: string;
-        email?: string;
-        username?: string;
-        firstName?: string;
-        lastName?: string;
-        role?: Role;
-        avatarUrl?: string;
-      };
-    },
-  ) {
-    return this.authService.refreshToken(
-      req.user.id,
-      req.user.email,
-      req.user.username,
-      req.user.firstName,
-      req.user.lastName,
-      req.user.role,
-      req.user.avatarUrl,
-    );
+  refreshToken(@Request() req: AuthRequest) {
+    return this.authService.refreshToken(req.user);
   }
 
   @Public()
@@ -113,73 +74,40 @@ export class AuthController {
   @Public()
   @UseGuards(GoogleAuthGuard)
   @Get('google/callback')
-  async googleLoginCallback(
-    @Request()
-    req: {
-      user: {
-        id: string;
-        email?: string;
-        username?: string;
-        firstName?: string;
-        lastName?: string;
-        role?: Role;
-        avatarUrl?: string;
-        emailVerified?: boolean;
-        needsTermsAcceptance?: boolean;
-      };
-    },
-    @Res() res: Response,
-  ) {
+  async googleLoginCallback(@Request() req: AuthRequest, @Res() res: Response) {
     try {
       const { needsTermsAcceptance, ...userData } = req.user;
-      const tokens = await this.authService.loginUser(
-        userData.id,
-        userData.email,
-        userData.username,
-        userData.firstName,
-        userData.lastName,
-        userData.role,
-        userData.avatarUrl,
-      );
+      const userWithTokens = await this.authService.loginUser(userData);
 
-      // If user hasn't accepted terms, redirect to terms page
+      // Create a Record<string, string> object for URLSearchParams
+      const paramsObject: Record<string, string> = {
+        accessToken: userWithTokens.accessToken || '',
+        refreshToken: userWithTokens.refreshToken || '',
+        userId: userWithTokens.id,
+        email: userWithTokens.email,
+        username: userWithTokens.username || '',
+        firstName: userWithTokens.firstName || '',
+        lastName: userWithTokens.lastName || '',
+        role: userWithTokens.role,
+        avatar: userWithTokens.avatar || '',
+        emailVerified: String(
+          needsTermsAcceptance ? true : userWithTokens.emailVerified,
+        ),
+        newsletterOptIn: String(userWithTokens.newsletterOptIn),
+      };
+
       if (needsTermsAcceptance) {
-        const queryParams = new URLSearchParams({
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          userId: tokens.id,
-          email: tokens.email,
-          username: tokens.username || '',
-          firstName: tokens.firstName || '',
-          lastName: tokens.lastName || '',
-          role: tokens.role,
-          avatar: tokens.avatar || '',
-          emailVerified: String(true),
-          newsletterOptIn: String(tokens.newsletterOptIn),
-          needsTermsAcceptance: 'true',
-        });
-
-        return res.redirect(
-          `${this.configService.get('FRONTEND_URL')}/auth/accept-terms?${queryParams.toString()}`,
-        );
+        paramsObject.needsTermsAcceptance = 'true';
       }
 
-      // If user has already accepted terms, redirect to callback as normal
-      const queryParams = new URLSearchParams({
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        userId: tokens.id,
-        email: tokens.email,
-        username: tokens.username || '',
-        firstName: tokens.firstName || '',
-        lastName: tokens.lastName || '',
-        role: tokens.role,
-        avatar: tokens.avatar || '',
-        emailVerified: String(tokens.emailVerified),
-        newsletterOptIn: String(tokens.newsletterOptIn),
-      });
+      const queryParams = new URLSearchParams(paramsObject);
+
+      const redirectPath = needsTermsAcceptance
+        ? '/auth/accept-terms'
+        : '/api/auth/google/callback';
+
       return res.redirect(
-        `${this.configService.get('FRONTEND_URL')}/api/auth/google/callback?${queryParams.toString()}`,
+        `${this.configService.get('FRONTEND_URL')}${redirectPath}?${queryParams.toString()}`,
       );
     } catch (error) {
       console.error('Google OAuth callback error:', error);
@@ -191,7 +119,7 @@ export class AuthController {
 
   @Public()
   @Post('oauth/accept-terms')
-  async acceptOAuthTerms(@Body() acceptTermsDto: AcceptTermsDto) {
+  acceptOAuthTerms(@Body() acceptTermsDto: AcceptTermsDto) {
     return this.authService.acceptOAuthTerms(
       acceptTermsDto.userId,
       acceptTermsDto.termsAccepted,
@@ -200,7 +128,7 @@ export class AuthController {
   }
 
   @Post('signout')
-  signOut(@Request() req: { user: { id: string } }) {
+  signOut(@Request() req: AuthRequest) {
     return this.authService.signOut(req.user.id);
   }
 
@@ -219,16 +147,16 @@ export class AuthController {
   }
 
   @Patch('updateProfile')
-  async updateProfile(
-    @Request() req: { user: { id: string } },
+  updateProfile(
+    @Request() req: AuthRequest,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
     return this.authService.updateUserProfile(req.user.id, updateProfileDto);
   }
 
   @Patch('updatePassword')
-  async updatePassword(
-    @Request() req: { user: { id: string } },
+  updatePassword(
+    @Request() req: AuthRequest,
     @Body() updatePasswordDto: UpdatePasswordDto,
   ) {
     return this.authService.changeUserPassword(
@@ -262,14 +190,14 @@ export class AuthController {
 
   @Roles('ADMIN')
   @Get('admin/dashboard')
-  adminRoute(@Request() req: { user: { id: string; email?: string } }) {
+  adminRoute(@Request() req: AuthRequest) {
     return {
       message: `This route is protected by JWT. User ID: ${req.user.id} Email: ${req.user.email}`,
     };
   }
 
   @Get('profile')
-  profileRoute(@Request() req: { user: { id: string; email?: string } }) {
+  profileRoute(@Request() req: AuthRequest) {
     return {
       message: `This route is protected by JWT. User ID: ${req.user.id} Email: ${req.user.email}`,
     };

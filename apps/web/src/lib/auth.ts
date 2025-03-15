@@ -38,7 +38,6 @@ export async function signIn(
     }
 
     const result = await response.json();
-    console.log("SignIn response:", result);
 
     return result;
   } catch (error) {
@@ -51,7 +50,7 @@ export async function signIn(
 
 export async function signUp(data: SignUpFormData): Promise<AuthResponse> {
   try {
-    const response = await fetch(`${config.api.url}/auth/register`, {
+    const response = await fetch(`${config.api.url}/auth/signup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -62,9 +61,9 @@ export async function signUp(data: SignUpFormData): Promise<AuthResponse> {
         username: data.username || "",
         email: data.email,
         password: data.password,
-        termsAccepted: data.termsAccepted, // Add this field
-        newsletterOptIn: data.newsletterOptIn || false, // Add this field
-        recaptchaToken: data.recaptchaToken, // Add this field
+        termsAccepted: data.termsAccepted,
+        newsletterOptIn: data.newsletterOptIn || false,
+        recaptchaToken: data.recaptchaToken,
       }),
     });
 

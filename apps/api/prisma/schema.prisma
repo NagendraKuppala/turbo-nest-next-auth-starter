@@ -20,7 +20,7 @@ model User {
   password       String
   pwdResetToken         String?   @db.VarChar(255)
   pwdResetTokenExpiry   DateTime?
-  avatarUrl      String?
+  avatar      String?
   tipsGiven      Tip[]     @relation("GivenTips")
   tipsReceived   Tip[]     @relation("ReceivedTips")
   accountBalance Float     @default(0)

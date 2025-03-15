@@ -25,7 +25,6 @@ export default function SignInPage() {
 
   const handleSuccess = async (result: AuthResponse) => {
     try {
-      console.log("Creating session with result:", result);
       // First update the session
       await createSession({
         user: {

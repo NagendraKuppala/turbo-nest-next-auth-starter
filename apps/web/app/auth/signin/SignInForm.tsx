@@ -139,7 +139,7 @@ export function SignInForm({
         </div>
         <div className="text-center text-sm pb-4">
           Don&apos;t have an account?{" "}
-          <Link href="/auth/register" className="font-semibold underline">
+          <Link href="/auth/signup" className="font-semibold underline">
             Sign up
           </Link>
         </div>

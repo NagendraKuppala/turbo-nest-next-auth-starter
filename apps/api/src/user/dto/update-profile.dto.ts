@@ -14,7 +14,7 @@ export class UpdateProfileDto extends PartialType(
     'email',
     'password',
     'emailVerified',
-    'avatarUrl',
+    'avatar',
   ] as const),
 ) {
   @IsString()

@@ -15,7 +15,7 @@ import { signUp as signUpApi } from "@/lib/auth";
 import { AuthResponse, SignUpFormData, signUpSchema } from "@/lib/authTypes";
 import ReCAPTCHA from "react-google-recaptcha";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useRef, useEffect } from "react";
+import { useRef } from "react";
 
 interface SignUpFormProps {
   onSuccess: (data: AuthResponse) => void;
@@ -38,7 +38,7 @@ export function SignUpForm({
     handleSubmit,
     setValue,
     watch,
-    formState: { errors, isSubmitting, isValid },
+    formState: { errors, isSubmitting },
   } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
@@ -49,7 +49,6 @@ export function SignUpForm({
   });
 
   const onSubmit = async (data: SignUpFormData) => {
-    console.log("Form submitted with data:", data);
     setIsLoading(true);
     try {
       if (!recaptchaRef.current) {
@@ -76,13 +75,6 @@ export function SignUpForm({
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    console.log("reCAPTCHA loaded:", recaptchaRef.current);
-    console.log("Current form values:", watch());
-    console.log("Form is valid:", isValid);
-    console.log("Form errors:", errors);
-  }, [isValid, errors, watch]);
 
   // Use direct registration for checkbox to ensure its value is properly tracked
   const handleTermsAccepted = (checked: boolean | "indeterminate") => {

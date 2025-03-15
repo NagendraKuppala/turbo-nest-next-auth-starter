@@ -13,7 +13,7 @@ interface UserWithTermsAccepted {
   firstName: string;
   lastName: string | null;
   role: string;
-  avatarUrl: string | null;
+  avatar: string | null;
   termsAccepted: boolean;
   emailVerified: boolean;
   newsletterOptIn: boolean;
@@ -72,7 +72,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
         firstName: profile.name.givenName,
         lastName: profile.name.familyName,
         username: profile.displayName || profile.emails[0].value,
-        avatarUrl: profile.photos[0].value,
+        avatar: profile.photos[0].value,
         password: '',
         termsAccepted: false, // Google OAuth users need explicit terms acceptance
         newsletterOptIn: false, // Default to false for OAuth users
@@ -134,7 +134,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
         firstName: userData.firstName,
         lastName: userData.lastName,
         role: userData.role,
-        avatarUrl: userData.avatarUrl,
+        avatar: userData.avatar,
         emailVerified: true, // OAuth users are pre-verified
         newsletterOptIn: userData.newsletterOptIn,
         needsTermsAcceptance, // Flag to indicate if terms need acceptance

@@ -50,12 +50,9 @@ export function Navbar() {
     setMounted(true);
     // Force a re-render when auth state changes
     const unsubscribe = useAuthStore.subscribe(
-      (state) => state.isAuthenticated,
-      (isAuthenticated) => {
-        console.log("Auth state changed:", { isAuthenticated, user: useAuthStore.getState().user });
-      }
+      (state) => state.isAuthenticated
     );
-    
+
     return () => {
       unsubscribe();
     };
@@ -162,7 +159,9 @@ export function Navbar() {
                     return (
                       <NavigationMenuItem key={item.href}>
                         <Link href={item.href} legacyBehavior passHref>
-                          <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                          <NavigationMenuLink
+                            className={navigationMenuTriggerStyle()}
+                          >
                             <span className="flex items-center">
                               {item.label}
                               {item.icon && item.icon}
