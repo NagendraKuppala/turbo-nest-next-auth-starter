@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { SignUpForm } from "./SignUpForm";
 import { AuthResponse } from "@/lib/authTypes";
+import Image from "next/image";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -30,13 +31,16 @@ export default function RegisterPage() {
     <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-muted p-6 md:p-10">
       <div className="flex w-full max-w-md flex-col gap-4">
         <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="flex flex-row gap-1 justify-center text-xl">
-              <p>Create your</p>
-              <Link href="/" className="underline underline-offset-4">
+          <CardHeader className="text-center">            
+            <CardTitle className="flex flex-row gap-1 justify-center text-4xl">
+              Join&nbsp;
+              <Image src="/icon.svg" alt="KwikDeals" width={40} height={20}/>
+              <Link href="/" className="underline underline-offset-2">
                 KwikDeals
               </Link>
-              <p>account</p>
+            </CardTitle>
+            <CardTitle className="flex flex-row gap-1 justify-center text-xs">
+              Never pay full price again! Find and share great deals.
             </CardTitle>
           </CardHeader>
           <CardContent>

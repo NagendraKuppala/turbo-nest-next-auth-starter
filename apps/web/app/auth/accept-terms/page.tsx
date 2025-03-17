@@ -155,7 +155,7 @@ export default function TermsAcceptancePage() {
                   }
                 />
                 <label htmlFor="newsletterOptIn" className="text-sm">
-                  Send me updates about deals and promotions (optional)
+                  Yes, include me in periodic deals and promotion emails
                 </label>
               </div>
             </div>

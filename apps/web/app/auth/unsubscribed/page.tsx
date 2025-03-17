@@ -14,7 +14,7 @@ export default function NewsletterUnsubscribedPage() {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-muted p-6 md:p-10">
       <div className="flex w-full max-w-md flex-col gap-4">
-        <Card>
+        <Card className="p-4">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Newsletter Preferences</CardTitle>
           </CardHeader>

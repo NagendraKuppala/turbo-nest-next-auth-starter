@@ -97,7 +97,7 @@ export function SignUpForm({
           <Label htmlFor="firstName">
             First Name <span className="text-red-500">*</span>{" "}
           </Label>
-          <Input id="firstName" placeholder="Kwik" {...register("firstName")} />
+          <Input id="firstName" autoComplete="on" placeholder="John" {...register("firstName")} />
           {errors.firstName && (
             <p className="text-sm text-red-500">{errors.firstName.message}</p>
           )}
@@ -105,7 +105,7 @@ export function SignUpForm({
 
         <div className="">
           <Label htmlFor="lastName">Last Name</Label>
-          <Input id="lastName" placeholder="Deals" {...register("lastName")} />
+          <Input id="lastName" autoComplete="on" placeholder="Snow" {...register("lastName")} />
           {errors.lastName && (
             <p className="text-sm text-red-500">{errors.lastName.message}</p>
           )}
@@ -118,7 +118,8 @@ export function SignUpForm({
         </Label>
         <Input
           id="username"
-          placeholder="Deals Guru"
+          autoComplete="on"
+          placeholder="Deals_Guru"
           {...register("username")}
         />
         {errors.username && (
@@ -133,6 +134,7 @@ export function SignUpForm({
         <Input
           id="email"
           type="email"
+          autoComplete="email"
           placeholder="your@email.com"
           {...register("email")}
         />
@@ -170,6 +172,7 @@ export function SignUpForm({
         <Input
           id="password"
           type="password"
+          autoComplete="off"
           placeholder="••••••••"
           {...register("password")}
         />
@@ -185,6 +188,7 @@ export function SignUpForm({
         <Input
           id="confirmPassword"
           type="password"
+          autoComplete="off"
           placeholder="••••••••"
           {...register("confirmPassword")}
         />
@@ -234,7 +238,7 @@ export function SignUpForm({
             onCheckedChange={handleNewsletterOptIn}
           />
           <label htmlFor="newsletterOptIn" className="text-sm">
-            Send me updates about deals and promotions (optional)
+            Yes, include me in periodic deals and promotion emails
           </label>
         </div>
       </div>
