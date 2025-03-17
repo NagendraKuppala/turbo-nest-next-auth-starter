@@ -541,7 +541,7 @@ export class AuthService {
   // ====================================================
 
   // Verify reCAPTCHA token
-  private async verifyRecaptcha(token: string) {
+  public async verifyRecaptcha(token: string) {
     const recaptchaSecret = this.configService.get<string>(
       'RECAPTCHA_SECRET_KEY',
     );

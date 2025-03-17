@@ -399,4 +399,25 @@ export class EmailService implements OnModuleInit {
       },
     );
   }
+
+  async sendContactFormEmail(
+    adminEmail: string,
+    name: string,
+    email: string,
+    subject: string,
+    message: string,
+  ): Promise<void> {
+    await this.sendEmail(
+      adminEmail,
+      `Contact Form: ${subject}`,
+      'contact-form',
+      {
+        name,
+        email,
+        subject,
+        message,
+        submittedAt: new Date().toLocaleString(),
+      },
+    );
+  }
 }

@@ -1,27 +1,27 @@
 import Link from "next/link";
-import { Instagram, Twitter, Facebook, Youtube } from "lucide-react";
 
 export function Footer() {
   const socialLinks = [
-    { icon: Instagram, href: "https://instagram.com", label: "Instagram" },
-    { icon: Twitter, href: "https://twitter.com", label: "Twitter" },
-    { icon: Facebook, href: "https://facebook.com", label: "Facebook" },
-    { icon: Youtube, href: "https://youtube.com", label: "Youtube" },
+    { href: "https://instagram.com/kwikdeals", label: "Instagram" },
+    { href: "https://x.com/kwikdeals", label: "Twitter/X" },
+    { href: "https://facebook.com/kwikdeals", label: "Facebook" },
+    { href: "https://youtube.com/kwikdeals", label: "Youtube" },
   ];
 
   const footerLinks = [
     {
       title: "About",
       links: [
-        { href: "/about", label: "About Us" },
-        { href: "/contact", label: "Contact Us" },
+        { href: "/info/about", label: "About Us" },
+        { href: "/info/contact", label: "Contact Us" },
       ],
     },
     {
       title: "Legal",
       links: [
-        { href: "/terms", label: "Terms of Service" },
-        { href: "/privacy", label: "Privacy Policy" },
+        { href: "/info/terms", label: "Terms of Service" },
+        { href: "/info/privacy", label: "Privacy Policy" },
+        { href: "/info/rules", label: "Community Rules" },
       ],
     },
     {
@@ -49,7 +49,6 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="transition-colors hover:text-primary"
                 >
-                  <social.icon className="h-5 w-5" />
                   <span className="sr-only">{social.label}</span>
                 </Link>
               ))}

@@ -213,14 +213,14 @@ export function SignUpForm({
           <label htmlFor="termsAccepted" className="text-sm">
             I accept the{" "}
             <Link
-              href="/terms"
+              href="/info/terms"
               className="text-primary underline hover:text-primary/90"
             >
               Terms of Service
             </Link>{" "}
             and{" "}
             <Link
-              href="/privacy"
+              href="/info/privacy"
               className="text-primary underline hover:text-primary/90"
             >
               Privacy Policy
