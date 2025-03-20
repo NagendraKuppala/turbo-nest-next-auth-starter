@@ -109,7 +109,6 @@ export function Navbar() {
               width={188}
               height={40}
               unoptimized
-              priority
             />
           </Link>
         </div>

@@ -3,7 +3,7 @@ import Link from "next/link";
 export function Footer() {
   const socialLinks = [
     { href: "https://instagram.com/kwikdeals", label: "Instagram" },
-    { href: "https://x.com/kwikdeals", label: "Twitter/X" },
+    { href: "https://x.com/kwikdeals", label: "Twitter / X" },
     { href: "https://facebook.com/kwikdeals", label: "Facebook" },
     { href: "https://youtube.com/kwikdeals", label: "Youtube" },
   ];
@@ -36,12 +36,13 @@ export function Footer() {
     <footer className="mt-auto border-t bg-background">
       <div className="container py-3">
         {/* Grid layout for footer sections */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           {/* Social Media Section */}
           <div className="space-y-4">
             <h4 className="text-sm font-semibold">Follow Us</h4>
-            <div className="flex gap-4">
+            <ul className="space-y-2 text-sm">
               {socialLinks.map((social) => (
+                <li key={social.href}>
                 <Link
                   key={social.label}
                   href={social.href}
@@ -49,10 +50,11 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="transition-colors hover:text-primary"
                 >
-                  <span className="sr-only">{social.label}</span>
+                  {social.label}
                 </Link>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
 
           {/* Other Footer Sections */}

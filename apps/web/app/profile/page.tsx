@@ -22,15 +22,22 @@ export default function ProfilePage() {
   const handleSuccess = (message: string) => {
     setSuccess(message);
     setError(null);
+    setTimeout(() => setSuccess(null), 10000);
   };
 
   // Show loading state
   if (isLoading) {
-    return <Spinner />;
+    return (
+      <div className="container py-10 flex flex-col items-center justify-center min-h-[50vh]">
+        <Spinner />
+        <p className="mt-4 text-muted-foreground">
+          Loading profile information...
+        </p>
+      </div>
+    );
   }
-  
+
   // The middleware handles redirecting if not authenticated,
-  // so we can assume user exists here
   if (!user) {
     return null; // This is a fallback that shouldn't normally happen
   }
@@ -39,13 +46,14 @@ export default function ProfilePage() {
     <div className="container py-10">
       <h1 className="text-3xl font-bold mb-6">Account Settings</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div
+        className="grid grid-cols-1 md:grid-cols-3 gap-6"
+        role="main"
+        aria-label="Profile settings"
+      >
         {/* Left column - Avatar */}
         <div className="md:col-span-1">
-          <AvatarUpload 
-            onError={handleError} 
-            onSuccess={handleSuccess} 
-          />
+          <AvatarUpload onError={handleError} onSuccess={handleSuccess} />
         </div>
 
         {/* Right column - Forms */}
@@ -61,18 +69,12 @@ export default function ProfilePage() {
 
             {/* Profile form */}
             <TabsContent value="profile">
-              <ProfileForm 
-                onError={handleError} 
-                onSuccess={handleSuccess} 
-              />
+              <ProfileForm onError={handleError} onSuccess={handleSuccess} />
             </TabsContent>
 
             {/* Password form */}
             <TabsContent value="password">
-              <PasswordForm 
-                onError={handleError} 
-                onSuccess={handleSuccess} 
-              />
+              <PasswordForm onError={handleError} onSuccess={handleSuccess} />
             </TabsContent>
           </Tabs>
         </div>

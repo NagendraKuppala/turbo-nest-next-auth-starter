@@ -236,7 +236,7 @@ export class EmailService implements OnModuleInit {
       ...context,
       frontendUrl: this.configService.get<string>(
         'FRONTEND_URL',
-        'https://kwikdeals.com',
+        'https://kwikdeals.net',
       ),
       currentYear: new Date().getFullYear(),
     };
